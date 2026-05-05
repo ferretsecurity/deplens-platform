@@ -3,6 +3,7 @@ module github.com/ferretsecurity/deplens-platform
 go 1.25.0
 
 require (
+	github.com/alexedwards/scs/v2 v2.8.0
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/pressly/goose/v3 v3.24.3
 	github.com/testcontainers/testcontainers-go v0.39.0
