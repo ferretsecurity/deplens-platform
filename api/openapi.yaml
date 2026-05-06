@@ -76,6 +76,20 @@ components:
           type: array
           items:
             type: string
+    RawDeplensSnapshot:
+      type: object
+      required: [root, manifests]
+      properties:
+        root:
+          type: string
+        manifests:
+          type: array
+          items:
+            $ref: "#/components/schemas/ManifestInput"
+        warnings:
+          type: array
+          items:
+            type: string
     ManifestInput:
       type: object
       required: [type, path, has_dependencies]
@@ -111,8 +125,59 @@ components:
         source:
           type: string
         extras:
+          type: object
+          additionalProperties:
+            type: string
+    ScanManifestListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
           type: array
           items:
+            $ref: "#/components/schemas/ScanManifest"
+    ScanManifest:
+      type: object
+      required: [id, type, path, warnings, dependencies]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        path:
+          type: string
+        has_dependencies:
+          type: boolean
+          nullable: true
+        warnings:
+          type: array
+          items:
+            type: string
+        dependencies:
+          type: array
+          items:
+            $ref: "#/components/schemas/ManifestDependency"
+    ManifestDependency:
+      type: object
+      required: [id, raw, name, version, constraint, section, source, extras]
+      properties:
+        id:
+          type: string
+        raw:
+          type: string
+        name:
+          type: string
+        version:
+          type: string
+        constraint:
+          type: string
+        section:
+          type: string
+        source:
+          type: string
+        extras:
+          type: object
+          additionalProperties:
             type: string
 security:
   - bearerAuth: []
@@ -143,12 +208,70 @@ paths:
           description: OK
     post:
       summary: Upload a scan snapshot
+      parameters:
+        - in: header
+          name: X-Deplens-Project-Slug
+          required: false
+          schema:
+            type: string
+          description: Required when uploading raw deplens JSON.
+        - in: header
+          name: X-Deplens-Project-Name
+          required: false
+          schema:
+            type: string
+          description: Optional when uploading raw deplens JSON; defaults to project slug.
+        - in: header
+          name: X-Deplens-Repository-Slug
+          required: false
+          schema:
+            type: string
+          description: Required when uploading raw deplens JSON.
+        - in: header
+          name: X-Deplens-Repository-Name
+          required: false
+          schema:
+            type: string
+          description: Optional when uploading raw deplens JSON; defaults to repository slug.
+        - in: header
+          name: X-Deplens-Repository-URL
+          required: false
+          schema:
+            type: string
+          description: Required when uploading raw deplens JSON.
+        - in: header
+          name: X-Deplens-Default-Branch
+          required: false
+          schema:
+            type: string
+          description: Required when uploading raw deplens JSON.
+        - in: header
+          name: X-Deplens-Commit-SHA
+          required: false
+          schema:
+            type: string
+          description: Required when uploading raw deplens JSON.
+        - in: header
+          name: X-Deplens-Ref
+          required: false
+          schema:
+            type: string
+          description: Required when uploading raw deplens JSON.
+        - in: header
+          name: X-Deplens-Scanned-At
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Required when uploading raw deplens JSON.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ScanUploadRequest"
+              oneOf:
+                - $ref: "#/components/schemas/ScanUploadRequest"
+                - $ref: "#/components/schemas/RawDeplensSnapshot"
       responses:
         "201":
           description: Created
@@ -164,6 +287,22 @@ paths:
       responses:
         "200":
           description: OK
+  /api/v1/scans/{scan_id}/manifests:
+    get:
+      summary: List manifests for a scan
+      parameters:
+        - in: path
+          name: scan_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Scan manifest detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanManifestListResponse"
   /api/v1/scans/{scan_id}/metadata:
     patch:
       summary: Update scan labels and annotation
@@ -188,3 +327,23 @@ paths:
       responses:
         "200":
           description: OK
+  /api/v1/tokens:
+    post:
+      summary: Create an API token for the active tenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [label, scopes]
+              properties:
+                label:
+                  type: string
+                scopes:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "201":
+          description: Created

@@ -21,19 +21,12 @@ func NewAuthRouter(service AuthService) http.Handler {
 			return
 		}
 
-		sessionToken, err := service.Login(r, payload.Email, payload.Password)
+		_, err := service.Login(r, payload.Email, payload.Password)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
 
-		http.SetCookie(w, &http.Cookie{
-			Name:     "deplens_session",
-			Value:    sessionToken,
-			HttpOnly: true,
-			Path:     "/",
-			SameSite: http.SameSiteLaxMode,
-		})
 		w.WriteHeader(http.StatusOK)
 	})
 	return mux

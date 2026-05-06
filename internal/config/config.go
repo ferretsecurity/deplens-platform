@@ -45,9 +45,6 @@ func Load() (Config, error) {
 	if cfg.BootstrapOwnerPassword == "" {
 		return Config{}, errors.New("BOOTSTRAP_OWNER_PASSWORD is required")
 	}
-	if cfg.BootstrapAPIToken == "" {
-		return Config{}, errors.New("BOOTSTRAP_API_TOKEN is required")
-	}
 	if cfg.SessionCookieSecret == "" {
 		return Config{}, errors.New("SESSION_COOKIE_SECRET is required")
 	}

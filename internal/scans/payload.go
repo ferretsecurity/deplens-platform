@@ -10,6 +10,12 @@ type UploadRequest struct {
 	Snapshot      SnapshotInput     `json:"snapshot"`
 }
 
+type RawSnapshot struct {
+	Root      string          `json:"root"`
+	Manifests []ManifestInput `json:"manifests"`
+	Warnings  []string        `json:"warnings,omitempty"`
+}
+
 type ProjectInput struct {
 	Slug string `json:"slug"`
 	Name string `json:"name"`
@@ -43,11 +49,11 @@ type ManifestInput struct {
 }
 
 type DependencyInput struct {
-	Raw        string   `json:"raw"`
-	Name       string   `json:"name,omitempty"`
-	Version    string   `json:"version,omitempty"`
-	Constraint string   `json:"constraint,omitempty"`
-	Section    string   `json:"section,omitempty"`
-	Source     string   `json:"source,omitempty"`
-	Extras     []string `json:"extras,omitempty"`
+	Raw        string            `json:"raw"`
+	Name       string            `json:"name,omitempty"`
+	Version    string            `json:"version,omitempty"`
+	Constraint string            `json:"constraint,omitempty"`
+	Section    string            `json:"section,omitempty"`
+	Source     string            `json:"source,omitempty"`
+	Extras     map[string]string `json:"extras,omitempty"`
 }

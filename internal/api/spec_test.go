@@ -16,9 +16,11 @@ func TestOpenAPIDefinesScanUploadAndHistoryPaths(t *testing.T) {
 	for _, want := range []string{
 		"/api/v1/scans:",
 		"/api/v1/scans/{scan_id}:",
+		"/api/v1/scans/{scan_id}/manifests:",
 		"/api/v1/scans/{scan_id}/metadata:",
 		"/api/v1/projects:",
 		"/api/v1/repositories:",
+		"/api/v1/tokens:",
 	} {
 		if !strings.Contains(spec, want) {
 			t.Fatalf("OpenAPI spec missing path %q", want)

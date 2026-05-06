@@ -34,6 +34,31 @@ func (s Service) Upload(ctx context.Context, tenantID string, input UploadReques
 		return "", err
 	}
 
+	manifests := make([]store.UploadManifestParams, 0, len(input.Snapshot.Manifests))
+	for manifestIdx, manifest := range input.Snapshot.Manifests {
+		dependencies := make([]store.UploadDependencyParams, 0, len(manifest.Dependencies))
+		for dependencyIdx, dependency := range manifest.Dependencies {
+			dependencies = append(dependencies, store.UploadDependencyParams{
+				Position:   dependencyIdx,
+				Raw:        dependency.Raw,
+				Name:       dependency.Name,
+				Version:    dependency.Version,
+				Constraint: dependency.Constraint,
+				Section:    dependency.Section,
+				Source:     dependency.Source,
+				Extras:     dependency.Extras,
+			})
+		}
+		manifests = append(manifests, store.UploadManifestParams{
+			Position:        manifestIdx,
+			Type:            manifest.Type,
+			Path:            manifest.Path,
+			HasDependencies: manifest.HasDependencies,
+			Warnings:        manifest.Warnings,
+			Dependencies:    dependencies,
+		})
+	}
+
 	return s.Store.CreateScan(ctx, store.UploadScanParams{
 		TenantID:            tenantID,
 		ProjectSlug:         input.Project.Slug,
@@ -56,5 +81,6 @@ func (s Service) Upload(ctx context.Context, tenantID string, input UploadReques
 		DependencyCount:     summary.DependencyCount,
 		Labels:              input.Labels,
 		Annotation:          input.Annotation,
+		Manifests:           manifests,
 	})
 }

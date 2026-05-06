@@ -135,6 +135,74 @@ func (s ScanStore) GetScan(ctx context.Context, tenantID string, scanID string) 
 	return item, nil
 }
 
+func (s ScanStore) ListScanManifests(ctx context.Context, tenantID string, scanID string) ([]ScanManifestItem, error) {
+	rows, err := s.DB.Query(ctx, `
+		select m.id, m.type, m.path, m.has_dependencies, m.warnings
+		from scan_manifests m
+		join scans s on s.id = m.scan_id
+		where s.tenant_id = $1 and s.id = $2
+		order by m.position asc
+	`, tenantID, scanID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]ScanManifestItem, 0)
+	manifestIDs := make([]string, 0)
+	manifestIndexByID := make(map[string]int)
+	for rows.Next() {
+		var item ScanManifestItem
+		var warningsJSON []byte
+		if err := rows.Scan(&item.ID, &item.Type, &item.Path, &item.HasDependencies, &warningsJSON); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(warningsJSON, &item.Warnings); err != nil {
+			return nil, err
+		}
+
+		manifestIndexByID[item.ID] = len(items)
+		manifestIDs = append(manifestIDs, item.ID)
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(items) == 0 {
+		return items, nil
+	}
+
+	depRows, err := s.DB.Query(ctx, `
+		select d.id, d.manifest_id, d.raw, d.name, d.version, d."constraint", d.section, d.source, d.extras
+		from manifest_dependencies d
+		where d.manifest_id = any($1::uuid[])
+		order by d.manifest_id asc, d.position asc
+	`, manifestIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer depRows.Close()
+
+	for depRows.Next() {
+		var manifestID string
+		var dependency ManifestDependencyItem
+		var extrasJSON []byte
+		if err := depRows.Scan(&dependency.ID, &manifestID, &dependency.Raw, &dependency.Name, &dependency.Version, &dependency.Constraint, &dependency.Section, &dependency.Source, &extrasJSON); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(extrasJSON, &dependency.Extras); err != nil {
+			return nil, err
+		}
+
+		itemIndex, ok := manifestIndexByID[manifestID]
+		if !ok {
+			continue
+		}
+		items[itemIndex].Dependencies = append(items[itemIndex].Dependencies, dependency)
+	}
+	return items, depRows.Err()
+}
+
 func (s ScanStore) UpdateScanMetadata(ctx context.Context, tenantID string, scanID string, labels map[string]string, annotation string) error {
 	labelsJSON, err := json.Marshal(labels)
 	if err != nil {

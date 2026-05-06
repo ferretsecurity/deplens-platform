@@ -116,14 +116,16 @@ func BootstrapDefaultTenant(ctx context.Context, db *pgxpool.Pool, input Bootstr
 		return BootstrapResult{}, fmt.Errorf("insert tenant membership: %w", err)
 	}
 
-	tokenHash := hashToken(input.BootstrapToken)
-	_, err = tx.Exec(ctx, `
-		insert into api_tokens (tenant_id, label, token_hash, scopes)
-		values ($1, 'bootstrap-admin', $2, array['scan:write','scan:read','scan:metadata:write'])
-		on conflict (token_hash) do nothing
-	`, tenantID, tokenHash)
-	if err != nil {
-		return BootstrapResult{}, fmt.Errorf("insert bootstrap token: %w", err)
+	if input.BootstrapToken != "" {
+		tokenHash := hashToken(input.BootstrapToken)
+		_, err = tx.Exec(ctx, `
+			insert into api_tokens (tenant_id, label, token_hash, scopes)
+			values ($1, 'bootstrap-admin', $2, array['scan:write','scan:read','scan:metadata:write'])
+			on conflict (token_hash) do nothing
+		`, tenantID, tokenHash)
+		if err != nil {
+			return BootstrapResult{}, fmt.Errorf("insert bootstrap token: %w", err)
+		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {

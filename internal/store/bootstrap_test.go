@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/testcontainers/testcontainers-go"
@@ -72,8 +73,16 @@ func openTestDatabase(t *testing.T) (*pgxpool.Pool, string) {
 	}
 	t.Cleanup(pool.Close)
 
-	if err := pool.Ping(ctx); err != nil {
-		t.Fatalf("Ping() error = %v", err)
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		err = pool.Ping(ctx)
+		if err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("Ping() error = %v", err)
+		}
+		time.Sleep(200 * time.Millisecond)
 	}
 
 	return pool, connString

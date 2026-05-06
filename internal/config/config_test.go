@@ -8,7 +8,6 @@ func TestLoadUsesDefaultHTTPAddressAndTenantMode(t *testing.T) {
 	t.Setenv("BLOB_FILESYSTEM_ROOT", "./var/blobs")
 	t.Setenv("BOOTSTRAP_OWNER_EMAIL", "admin@example.com")
 	t.Setenv("BOOTSTRAP_OWNER_PASSWORD", "change-me-now")
-	t.Setenv("BOOTSTRAP_API_TOKEN", "bootstrap-token")
 	t.Setenv("SESSION_COOKIE_SECRET", "replace-me")
 
 	cfg, err := Load()
@@ -28,7 +27,6 @@ func TestLoadFailsWithoutDatabaseURL(t *testing.T) {
 	t.Setenv("BLOB_FILESYSTEM_ROOT", "./var/blobs")
 	t.Setenv("BOOTSTRAP_OWNER_EMAIL", "admin@example.com")
 	t.Setenv("BOOTSTRAP_OWNER_PASSWORD", "change-me-now")
-	t.Setenv("BOOTSTRAP_API_TOKEN", "bootstrap-token")
 	t.Setenv("SESSION_COOKIE_SECRET", "replace-me")
 
 	_, err := Load()

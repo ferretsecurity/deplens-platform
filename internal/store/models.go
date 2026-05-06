@@ -35,4 +35,45 @@ type UploadScanParams struct {
 	DependencyCount     int
 	Labels              map[string]string
 	Annotation          string
+	Manifests           []UploadManifestParams
+}
+
+type UploadManifestParams struct {
+	Position        int
+	Type            string
+	Path            string
+	HasDependencies *bool
+	Warnings        []string
+	Dependencies    []UploadDependencyParams
+}
+
+type UploadDependencyParams struct {
+	Position   int
+	Raw        string
+	Name       string
+	Version    string
+	Constraint string
+	Section    string
+	Source     string
+	Extras     map[string]string
+}
+
+type ScanManifestItem struct {
+	ID              string                   `json:"id"`
+	Type            string                   `json:"type"`
+	Path            string                   `json:"path"`
+	HasDependencies *bool                    `json:"has_dependencies"`
+	Warnings        []string                 `json:"warnings"`
+	Dependencies    []ManifestDependencyItem `json:"dependencies"`
+}
+
+type ManifestDependencyItem struct {
+	ID         string   `json:"id"`
+	Raw        string   `json:"raw"`
+	Name       string   `json:"name"`
+	Version    string   `json:"version"`
+	Constraint string   `json:"constraint"`
+	Section    string   `json:"section"`
+	Source     string   `json:"source"`
+	Extras     map[string]string `json:"extras"`
 }

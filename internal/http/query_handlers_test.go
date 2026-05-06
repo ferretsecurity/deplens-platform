@@ -35,6 +35,20 @@ func TestGetScanReturnsOK(t *testing.T) {
 	}
 }
 
+func TestListScanManifestsReturnsOK(t *testing.T) {
+	handler := NewQueryRouter(fakeQueryService{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/scans/scan-123/manifests", nil)
+	req.Header.Set("Authorization", "Bearer bootstrap-token")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rr.Code, http.StatusOK)
+	}
+}
+
 func TestPatchScanMetadataReturnsOK(t *testing.T) {
 	handler := NewQueryRouter(fakeQueryService{})
 
@@ -78,6 +92,13 @@ func (fakeQueryService) GetScan(_ *http.Request, token string) (any, error) {
 		return nil, errUnauthorized
 	}
 	return map[string]string{"id": "scan-123"}, nil
+}
+
+func (fakeQueryService) ListScanManifests(_ *http.Request, token string) (any, error) {
+	if token != "bootstrap-token" {
+		return nil, errUnauthorized
+	}
+	return map[string]any{"items": []map[string]any{{"id": "manifest-123"}}}, nil
 }
 
 func (fakeQueryService) UpdateScanMetadata(_ *http.Request, token string) error {

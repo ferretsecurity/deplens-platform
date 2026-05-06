@@ -5,10 +5,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/alexedwards/scs/v2"
 )
 
 func TestLoginSetsSessionCookieForValidUser(t *testing.T) {
-	handler := NewAuthRouter(fakeAuthService{})
+	sessions := scs.New()
+	handler := sessions.LoadAndSave(NewAuthRouter(fakeAuthService{sessions: sessions}))
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/login", bytes.NewBufferString(`{"email":"admin@example.com","password":"change-me-now"}`))
 	req.Header.Set("Content-Type", "application/json")
@@ -24,11 +27,16 @@ func TestLoginSetsSessionCookieForValidUser(t *testing.T) {
 	}
 }
 
-type fakeAuthService struct{}
+type fakeAuthService struct {
+	sessions *scs.SessionManager
+}
 
-func (fakeAuthService) Login(_ *http.Request, email string, password string) (string, error) {
+func (f fakeAuthService) Login(r *http.Request, email string, password string) (string, error) {
 	if email != "admin@example.com" || password != "change-me-now" {
 		return "", errUnauthorized
 	}
-	return "session-token", nil
+	if f.sessions != nil {
+		f.sessions.Put(r.Context(), "user_id", "user-123")
+	}
+	return "", nil
 }

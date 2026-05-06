@@ -15,6 +15,7 @@ type QueryService interface {
 	ListRepositories(r *http.Request, token string) (any, error)
 	ListScans(r *http.Request, token string) (any, error)
 	GetScan(r *http.Request, token string) (any, error)
+	ListScanManifests(r *http.Request, token string) (any, error)
 	UpdateScanMetadata(r *http.Request, token string) error
 }
 
@@ -23,6 +24,7 @@ type QueryStore interface {
 	ListRepositories(ctx context.Context, tenantID string) ([]store.RepositoryListItem, error)
 	ListScans(ctx context.Context, filter store.ScanFilter) ([]store.ScanListItem, error)
 	GetScan(ctx context.Context, tenantID string, scanID string) (store.ScanListItem, error)
+	ListScanManifests(ctx context.Context, tenantID string, scanID string) ([]store.ScanManifestItem, error)
 	UpdateScanMetadata(ctx context.Context, tenantID string, scanID string, labels map[string]string, annotation string) error
 }
 
@@ -85,6 +87,19 @@ func (s ProductionQueryService) GetScan(r *http.Request, token string) (any, err
 	return s.Reads.GetScan(r.Context(), tenantID, r.PathValue("scan_id"))
 }
 
+func (s ProductionQueryService) ListScanManifests(r *http.Request, token string) (any, error) {
+	tenantID, scopes, err := s.Lookup.FindToken(r.Context(), auth.HashToken(token))
+	if err != nil || !hasScope(scopes, "scan:read") {
+		return nil, errUnauthorized
+	}
+
+	items, err := s.Reads.ListScanManifests(r.Context(), tenantID, r.PathValue("scan_id"))
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"items": items}, nil
+}
+
 func (s ProductionQueryService) UpdateScanMetadata(r *http.Request, token string) error {
 	tenantID, scopes, err := s.Lookup.FindToken(r.Context(), auth.HashToken(token))
 	if err != nil || !hasScope(scopes, "scan:metadata:write") {
@@ -128,6 +143,9 @@ func NewQueryRouter(service QueryService) http.Handler {
 	})
 	mux.HandleFunc("GET /api/v1/scans/{scan_id}", func(w http.ResponseWriter, r *http.Request) {
 		writeJSONResult(w, r, service.GetScan)
+	})
+	mux.HandleFunc("GET /api/v1/scans/{scan_id}/manifests", func(w http.ResponseWriter, r *http.Request) {
+		writeJSONResult(w, r, service.ListScanManifests)
 	})
 	mux.HandleFunc("PATCH /api/v1/scans/{scan_id}/metadata", func(w http.ResponseWriter, r *http.Request) {
 		token := auth.BearerToken(r.Header.Get("Authorization"))

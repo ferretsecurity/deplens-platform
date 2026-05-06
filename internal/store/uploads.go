@@ -2,8 +2,11 @@ package store
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -119,9 +122,84 @@ func (s Store) CreateScan(ctx context.Context, params UploadScanParams) (string,
 		return "", err
 	}
 
+	if err := insertScanManifests(ctx, tx, scanID, params.Manifests); err != nil {
+		return "", err
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return "", err
 	}
 
 	return scanID, nil
+}
+
+func insertScanManifests(ctx context.Context, tx pgx.Tx, scanID string, manifests []UploadManifestParams) error {
+	for _, manifest := range manifests {
+		warningsJSON, err := json.Marshal(manifest.Warnings)
+		if err != nil {
+			return err
+		}
+
+		var manifestID string
+		err = tx.QueryRow(ctx, `
+			insert into scan_manifests (scan_id, position, type, path, has_dependencies, warnings)
+			values ($1, $2, $3, $4, $5, $6::jsonb)
+			returning id
+		`, scanID, manifest.Position, manifest.Type, manifest.Path, manifest.HasDependencies, string(warningsJSON)).Scan(&manifestID)
+		if err != nil {
+			return err
+		}
+
+		if err := insertManifestDependencies(ctx, tx, manifestID, manifest.Dependencies); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func insertManifestDependencies(ctx context.Context, tx pgx.Tx, manifestID string, dependencies []UploadDependencyParams) error {
+	for _, dependency := range dependencies {
+		extrasJSON, err := json.Marshal(dependency.Extras)
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.Exec(ctx, `
+			insert into manifest_dependencies (
+				manifest_id, position, raw, name, version, "constraint", section, source, extras
+			)
+			values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
+		`, manifestID, dependency.Position, dependency.Raw, dependency.Name, dependency.Version, dependency.Constraint, dependency.Section, dependency.Source, string(extrasJSON))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s Store) CreateAPIToken(ctx context.Context, tenantID string, label string, scopes []string) (string, error) {
+	token, err := randomToken()
+	if err != nil {
+		return "", err
+	}
+
+	_, err = s.DB.Exec(ctx, `
+		insert into api_tokens (tenant_id, label, token_hash, scopes)
+		values ($1, $2, $3, $4)
+	`, tenantID, label, hashToken(token), scopes)
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
+}
+
+func randomToken() (string, error) {
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return "dpt_" + base64.RawURLEncoding.EncodeToString(buf), nil
 }

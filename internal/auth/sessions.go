@@ -1,9 +1,11 @@
 package auth
 
 import (
+	"encoding/gob"
 	"net/http"
 
 	"github.com/alexedwards/scs/v2"
+	"github.com/ferretsecurity/deplens-platform/internal/store"
 )
 
 type SessionConfig struct {
@@ -11,6 +13,8 @@ type SessionConfig struct {
 }
 
 func NewSessionManager(cfg SessionConfig) *scs.SessionManager {
+	gob.Register([]store.MembershipRecord{})
+
 	manager := scs.New()
 	manager.Cookie.Name = "deplens_session"
 	manager.Cookie.HttpOnly = true
