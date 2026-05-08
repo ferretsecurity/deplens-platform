@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCreateScanPersistsManifestsAndDependencies(t *testing.T) {
@@ -32,7 +33,7 @@ func TestCreateScanPersistsManifestsAndDependencies(t *testing.T) {
 	if err := db.QueryRow(ctx, `
 		select count(*)
 		from manifest_dependencies d
-		join scan_manifests m on m.id = d.manifest_id
+		join scan_manifests m on m.id = d.scan_manifest_id
 		where m.scan_id = $1
 	`, scanID).Scan(&dependencyCount); err != nil {
 		t.Fatalf("dependency count query error = %v", err)
@@ -166,6 +167,69 @@ func TestCreateScanTracksManifestLifecycle(t *testing.T) {
 		t.Fatalf("query manifests error = %v", err)
 	}
 	defer rows.Close()
+
+	type manifestRow struct {
+		Path        string
+		FirstSeenAt time.Time
+		LastSeenAt  time.Time
+		IsActive    bool
+	}
+
+	got := make([]manifestRow, 0, 2)
+	for rows.Next() {
+		var row manifestRow
+		if err := rows.Scan(&row.Path, &row.FirstSeenAt, &row.LastSeenAt, &row.IsActive); err != nil {
+			t.Fatalf("scan manifest row error = %v", err)
+		}
+		row.FirstSeenAt = row.FirstSeenAt.UTC()
+		row.LastSeenAt = row.LastSeenAt.UTC()
+		got = append(got, row)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate manifests error = %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("manifest row count = %d, want 2", len(got))
+	}
+
+	firstScanTime := time.Date(2026, 5, 8, 10, 0, 0, 0, time.UTC)
+	secondScanTime := time.Date(2026, 5, 9, 10, 0, 0, 0, time.UTC)
+
+	require.Equal(t, []manifestRow{
+		{
+			Path:        "Cargo.lock",
+			FirstSeenAt: firstScanTime,
+			LastSeenAt:  firstScanTime,
+			IsActive:    false,
+		},
+		{
+			Path:        "package.json",
+			FirstSeenAt: firstScanTime,
+			LastSeenAt:  secondScanTime,
+			IsActive:    true,
+		},
+	}, got)
+
+	var packageManifestIDs []string
+	if err := db.QueryRow(ctx, `
+		select array_agg(manifest_id order by scan_id asc)
+		from scan_manifests
+		where scan_id in ($1, $2)
+		  and manifest_id = (
+			  select id
+			  from manifests
+			  where repository_id = (
+				  select repository_id
+				  from scans
+				  where id = $1
+			  )
+			  and path = 'package.json'
+		  )
+	`, firstID, secondID).Scan(&packageManifestIDs); err != nil {
+		t.Fatalf("query package manifest ids error = %v", err)
+	}
+	require.Len(t, packageManifestIDs, 2)
+	require.Equal(t, packageManifestIDs[0], packageManifestIDs[1])
 }
 
 func mustCreateScanWithDetails(t *testing.T, ctx context.Context, store Store, tenantID string) string {
@@ -174,8 +238,6 @@ func mustCreateScanWithDetails(t *testing.T, ctx context.Context, store Store, t
 	hasDependencies := true
 	scanID, err := store.CreateScan(ctx, UploadScanParams{
 		TenantID:            tenantID,
-		ProjectSlug:         "core",
-		ProjectName:         "Core",
 		RepositorySlug:      "repo",
 		RepositoryName:      "Repo",
 		URL:                 "https://example.com/repo.git",

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -75,25 +76,14 @@ func (s Store) CreateScan(ctx context.Context, params UploadScanParams) (string,
 	}
 	defer tx.Rollback(ctx)
 
-	var projectID string
-	err = tx.QueryRow(ctx, `
-		insert into projects (tenant_id, slug, name)
-		values ($1, $2, $3)
-		on conflict (tenant_id, slug) do update set name = excluded.name
-		returning id
-	`, params.TenantID, params.ProjectSlug, params.ProjectName).Scan(&projectID)
-	if err != nil {
-		return "", err
-	}
-
 	var repositoryID string
 	err = tx.QueryRow(ctx, `
-		insert into repositories (tenant_id, project_id, slug, name, url, default_branch)
-		values ($1, $2, $3, $4, $5, $6)
-		on conflict (tenant_id, project_id, slug)
+		insert into repositories (tenant_id, slug, name, url, default_branch)
+		values ($1, $2, $3, $4, $5)
+		on conflict (tenant_id, slug)
 		do update set name = excluded.name, url = excluded.url, default_branch = excluded.default_branch
 		returning id
-	`, params.TenantID, projectID, params.RepositorySlug, params.RepositoryName, params.URL, params.DefaultBranch).Scan(&repositoryID)
+	`, params.TenantID, params.RepositorySlug, params.RepositoryName, params.URL, params.DefaultBranch).Scan(&repositoryID)
 	if err != nil {
 		return "", err
 	}
@@ -106,23 +96,38 @@ func (s Store) CreateScan(ctx context.Context, params UploadScanParams) (string,
 	var scanID string
 	err = tx.QueryRow(ctx, `
 		insert into scans (
-			tenant_id, project_id, repository_id, artifact_key, artifact_sha256, schema_version,
+			tenant_id, repository_id, artifact_key, artifact_sha256, schema_version,
 			root_path, commit_sha, source_ref, scanned_at, manifest_count,
 			manifests_with_dependencies_count, manifests_without_dependencies_count,
 			manifests_unknown_count, dependency_count, labels, annotation
 		)
 		values (
-			$1, $2, $3, $4, $5, $6,
-			$7, $8, $9, $10, $11,
-			$12, $13, $14, $15, $16::jsonb, $17
+			$1, $2, $3, $4, $5,
+			$6, $7, $8, $9, $10,
+			$11, $12, $13, $14, $15::jsonb, $16
 		)
 		returning id
-	`, params.TenantID, projectID, repositoryID, params.ArtifactKey, params.ArtifactSHA256, params.SchemaVersion, params.RootPath, params.CommitSHA, params.SourceRef, params.ScannedAt, params.ManifestCount, params.WithDependencies, params.WithoutDependencies, params.UnknownDependencies, params.DependencyCount, string(labelsJSON), params.Annotation).Scan(&scanID)
+	`, params.TenantID, repositoryID, params.ArtifactKey, params.ArtifactSHA256, params.SchemaVersion, params.RootPath, params.CommitSHA, params.SourceRef, params.ScannedAt, params.ManifestCount, params.WithDependencies, params.WithoutDependencies, params.UnknownDependencies, params.DependencyCount, string(labelsJSON), params.Annotation).Scan(&scanID)
 	if err != nil {
 		return "", err
 	}
 
-	if err := insertScanManifests(ctx, tx, scanID, params.Manifests); err != nil {
+	presentPaths := make([]string, 0, len(params.Manifests))
+	for _, manifest := range params.Manifests {
+		presentPaths = append(presentPaths, manifest.Path)
+	}
+
+	if err := insertScanManifests(ctx, tx, scanID, repositoryID, params.ScannedAt, params.Manifests); err != nil {
+		return "", err
+	}
+
+	_, err = tx.Exec(ctx, `
+		update manifests
+		set is_active = false
+		where repository_id = $1
+		  and path <> all($2::text[])
+	`, repositoryID, presentPaths)
+	if err != nil {
 		return "", err
 	}
 
@@ -133,7 +138,7 @@ func (s Store) CreateScan(ctx context.Context, params UploadScanParams) (string,
 	return scanID, nil
 }
 
-func insertScanManifests(ctx context.Context, tx pgx.Tx, scanID string, manifests []UploadManifestParams) error {
+func insertScanManifests(ctx context.Context, tx pgx.Tx, scanID string, repositoryID string, scannedAt time.Time, manifests []UploadManifestParams) error {
 	for _, manifest := range manifests {
 		warningsJSON, err := json.Marshal(manifest.Warnings)
 		if err != nil {
@@ -142,15 +147,27 @@ func insertScanManifests(ctx context.Context, tx pgx.Tx, scanID string, manifest
 
 		var manifestID string
 		err = tx.QueryRow(ctx, `
-			insert into scan_manifests (scan_id, position, type, path, has_dependencies, warnings)
-			values ($1, $2, $3, $4, $5, $6::jsonb)
+			insert into manifests (repository_id, path, first_seen_at, last_seen_at, is_active)
+			values ($1, $2, $3, $3, true)
+			on conflict (repository_id, path)
+			do update set last_seen_at = excluded.last_seen_at, is_active = true
 			returning id
-		`, scanID, manifest.Position, manifest.Type, manifest.Path, manifest.HasDependencies, string(warningsJSON)).Scan(&manifestID)
+		`, repositoryID, manifest.Path, scannedAt).Scan(&manifestID)
 		if err != nil {
 			return err
 		}
 
-		if err := insertManifestDependencies(ctx, tx, manifestID, manifest.Dependencies); err != nil {
+		var scanManifestID string
+		err = tx.QueryRow(ctx, `
+			insert into scan_manifests (scan_id, manifest_id, position, type, has_dependencies, warnings)
+			values ($1, $2, $3, $4, $5, $6::jsonb)
+			returning id
+		`, scanID, manifestID, manifest.Position, manifest.Type, manifest.HasDependencies, string(warningsJSON)).Scan(&scanManifestID)
+		if err != nil {
+			return err
+		}
+
+		if err := insertManifestDependencies(ctx, tx, scanManifestID, manifest.Dependencies); err != nil {
 			return err
 		}
 	}
@@ -158,7 +175,7 @@ func insertScanManifests(ctx context.Context, tx pgx.Tx, scanID string, manifest
 	return nil
 }
 
-func insertManifestDependencies(ctx context.Context, tx pgx.Tx, manifestID string, dependencies []UploadDependencyParams) error {
+func insertManifestDependencies(ctx context.Context, tx pgx.Tx, scanManifestID string, dependencies []UploadDependencyParams) error {
 	for _, dependency := range dependencies {
 		extrasJSON, err := json.Marshal(dependency.Extras)
 		if err != nil {
@@ -167,10 +184,10 @@ func insertManifestDependencies(ctx context.Context, tx pgx.Tx, manifestID strin
 
 		_, err = tx.Exec(ctx, `
 			insert into manifest_dependencies (
-				manifest_id, position, raw, name, version, "constraint", section, source, extras
+				scan_manifest_id, position, raw, name, version, "constraint", section, source, extras
 			)
 			values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
-		`, manifestID, dependency.Position, dependency.Raw, dependency.Name, dependency.Version, dependency.Constraint, dependency.Section, dependency.Source, string(extrasJSON))
+		`, scanManifestID, dependency.Position, dependency.Raw, dependency.Name, dependency.Version, dependency.Constraint, dependency.Section, dependency.Source, string(extrasJSON))
 		if err != nil {
 			return err
 		}

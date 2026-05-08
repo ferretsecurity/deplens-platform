@@ -14,7 +14,8 @@ type MembershipRecord struct {
 }
 
 // UploadScanParams carries repository-only scan upload metadata.
-// ProjectSlug and ProjectName remain for the existing store write path.
+// ProjectSlug and ProjectName are retained for compatibility with the scan
+// service, but CreateScan now persists against repositories and manifests only.
 type UploadScanParams struct {
 	TenantID            string
 	ProjectSlug         string
