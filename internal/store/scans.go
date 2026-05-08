@@ -10,7 +10,6 @@ import (
 
 type ScanListItem struct {
 	ID              string            `json:"id"`
-	ProjectSlug     string            `json:"project_slug"`
 	RepositorySlug  string            `json:"repository_slug"`
 	CommitSHA       string            `json:"commit_sha"`
 	ScannedAt       time.Time         `json:"scanned_at"`
@@ -20,13 +19,7 @@ type ScanListItem struct {
 	Annotation      string            `json:"annotation"`
 }
 
-type ProjectListItem struct {
-	Slug string `json:"slug"`
-	Name string `json:"name"`
-}
-
 type RepositoryListItem struct {
-	ProjectSlug   string `json:"project_slug"`
 	Slug          string `json:"slug"`
 	Name          string `json:"name"`
 	URL           string `json:"url"`
@@ -44,36 +37,12 @@ type ScanStore struct {
 	DB *pgxpool.Pool
 }
 
-func (s ScanStore) ListProjects(ctx context.Context, tenantID string) ([]ProjectListItem, error) {
-	rows, err := s.DB.Query(ctx, `
-		select slug, name
-		from projects
-		where tenant_id = $1
-		order by slug asc
-	`, tenantID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	items := make([]ProjectListItem, 0)
-	for rows.Next() {
-		var item ProjectListItem
-		if err := rows.Scan(&item.Slug, &item.Name); err != nil {
-			return nil, err
-		}
-		items = append(items, item)
-	}
-	return items, rows.Err()
-}
-
 func (s ScanStore) ListRepositories(ctx context.Context, tenantID string) ([]RepositoryListItem, error) {
 	rows, err := s.DB.Query(ctx, `
-		select p.slug, r.slug, r.name, r.url, r.default_branch
+		select r.slug, r.name, r.url, r.default_branch
 		from repositories r
-		join projects p on p.id = r.project_id
 		where r.tenant_id = $1
-		order by p.slug asc, r.slug asc
+		order by r.slug asc
 	`, tenantID)
 	if err != nil {
 		return nil, err
@@ -83,7 +52,7 @@ func (s ScanStore) ListRepositories(ctx context.Context, tenantID string) ([]Rep
 	items := make([]RepositoryListItem, 0)
 	for rows.Next() {
 		var item RepositoryListItem
-		if err := rows.Scan(&item.ProjectSlug, &item.Slug, &item.Name, &item.URL, &item.DefaultBranch); err != nil {
+		if err := rows.Scan(&item.Slug, &item.Name, &item.URL, &item.DefaultBranch); err != nil {
 			return nil, err
 		}
 		items = append(items, item)
@@ -93,9 +62,8 @@ func (s ScanStore) ListRepositories(ctx context.Context, tenantID string) ([]Rep
 
 func (s ScanStore) ListScans(ctx context.Context, filter ScanFilter) ([]ScanListItem, error) {
 	rows, err := s.DB.Query(ctx, `
-		select s.id, p.slug, r.slug, s.commit_sha, s.scanned_at, s.manifest_count, s.dependency_count, s.labels, s.annotation
+		select s.id, r.slug, s.commit_sha, s.scanned_at, s.manifest_count, s.dependency_count, s.labels, s.annotation
 		from scans s
-		join projects p on p.id = s.project_id
 		join repositories r on r.id = s.repository_id
 		where s.tenant_id = $1 and r.slug = $2 and s.scanned_at between $3 and $4
 		order by s.scanned_at desc
@@ -120,12 +88,11 @@ func (s ScanStore) GetScan(ctx context.Context, tenantID string, scanID string) 
 	var item ScanListItem
 	var labelsJSON []byte
 	err := s.DB.QueryRow(ctx, `
-		select s.id, p.slug, r.slug, s.commit_sha, s.scanned_at, s.manifest_count, s.dependency_count, s.labels, s.annotation
+		select s.id, r.slug, s.commit_sha, s.scanned_at, s.manifest_count, s.dependency_count, s.labels, s.annotation
 		from scans s
-		join projects p on p.id = s.project_id
 		join repositories r on r.id = s.repository_id
 		where s.tenant_id = $1 and s.id = $2
-	`, tenantID, scanID).Scan(&item.ID, &item.ProjectSlug, &item.RepositorySlug, &item.CommitSHA, &item.ScannedAt, &item.ManifestCount, &item.DependencyCount, &labelsJSON, &item.Annotation)
+	`, tenantID, scanID).Scan(&item.ID, &item.RepositorySlug, &item.CommitSHA, &item.ScannedAt, &item.ManifestCount, &item.DependencyCount, &labelsJSON, &item.Annotation)
 	if err != nil {
 		return ScanListItem{}, err
 	}
@@ -137,11 +104,12 @@ func (s ScanStore) GetScan(ctx context.Context, tenantID string, scanID string) 
 
 func (s ScanStore) ListScanManifests(ctx context.Context, tenantID string, scanID string) ([]ScanManifestItem, error) {
 	rows, err := s.DB.Query(ctx, `
-		select m.id, m.type, m.path, m.has_dependencies, m.warnings
-		from scan_manifests m
-		join scans s on s.id = m.scan_id
+		select sm.id, sm.type, m.path, sm.has_dependencies, sm.warnings
+		from scan_manifests sm
+		join scans s on s.id = sm.scan_id
+		join manifests m on m.id = sm.manifest_id
 		where s.tenant_id = $1 and s.id = $2
-		order by m.position asc
+		order by sm.position asc
 	`, tenantID, scanID)
 	if err != nil {
 		return nil, err
@@ -173,10 +141,10 @@ func (s ScanStore) ListScanManifests(ctx context.Context, tenantID string, scanI
 	}
 
 	depRows, err := s.DB.Query(ctx, `
-		select d.id, d.manifest_id, d.raw, d.name, d.version, d."constraint", d.section, d.source, d.extras
+		select d.id, d.scan_manifest_id, d.raw, d.name, d.version, d."constraint", d.section, d.source, d.extras
 		from manifest_dependencies d
-		where d.manifest_id = any($1::uuid[])
-		order by d.manifest_id asc, d.position asc
+		where d.scan_manifest_id = any($1::uuid[])
+		order by d.scan_manifest_id asc, d.position asc
 	`, manifestIDs)
 	if err != nil {
 		return nil, err
@@ -223,7 +191,7 @@ type scanRows interface {
 func scanListItemFromRows(row scanRows) (ScanListItem, error) {
 	var item ScanListItem
 	var labelsJSON []byte
-	if err := row.Scan(&item.ID, &item.ProjectSlug, &item.RepositorySlug, &item.CommitSHA, &item.ScannedAt, &item.ManifestCount, &item.DependencyCount, &labelsJSON, &item.Annotation); err != nil {
+	if err := row.Scan(&item.ID, &item.RepositorySlug, &item.CommitSHA, &item.ScannedAt, &item.ManifestCount, &item.DependencyCount, &labelsJSON, &item.Annotation); err != nil {
 		return ScanListItem{}, err
 	}
 	if err := json.Unmarshal(labelsJSON, &item.Labels); err != nil {

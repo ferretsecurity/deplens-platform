@@ -11,7 +11,6 @@ import (
 )
 
 type QueryService interface {
-	ListProjects(r *http.Request, token string) (any, error)
 	ListRepositories(r *http.Request, token string) (any, error)
 	ListScans(r *http.Request, token string) (any, error)
 	GetScan(r *http.Request, token string) (any, error)
@@ -20,7 +19,6 @@ type QueryService interface {
 }
 
 type QueryStore interface {
-	ListProjects(ctx context.Context, tenantID string) ([]store.ProjectListItem, error)
 	ListRepositories(ctx context.Context, tenantID string) ([]store.RepositoryListItem, error)
 	ListScans(ctx context.Context, filter store.ScanFilter) ([]store.ScanListItem, error)
 	GetScan(ctx context.Context, tenantID string, scanID string) (store.ScanListItem, error)
@@ -38,14 +36,6 @@ func NewProductionQueryService(lookup TokenLookup, reads QueryStore) ProductionQ
 		Lookup: lookup,
 		Reads:  reads,
 	}
-}
-
-func (s ProductionQueryService) ListProjects(r *http.Request, token string) (any, error) {
-	tenantID, scopes, err := s.Lookup.FindToken(r.Context(), auth.HashToken(token))
-	if err != nil || !hasScope(scopes, "scan:read") {
-		return nil, errUnauthorized
-	}
-	return s.Reads.ListProjects(r.Context(), tenantID)
 }
 
 func (s ProductionQueryService) ListRepositories(r *http.Request, token string) (any, error) {
@@ -132,9 +122,6 @@ func NewServer(upload UploadService, query QueryService) http.Handler {
 
 func NewQueryRouter(service QueryService) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/v1/projects", func(w http.ResponseWriter, r *http.Request) {
-		writeJSONResult(w, r, service.ListProjects)
-	})
 	mux.HandleFunc("GET /api/v1/repositories", func(w http.ResponseWriter, r *http.Request) {
 		writeJSONResult(w, r, service.ListRepositories)
 	})
