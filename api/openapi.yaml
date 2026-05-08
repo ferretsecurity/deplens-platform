@@ -1,0 +1,321 @@
+openapi: 3.1.0
+info:
+  title: Deplens Platform API
+  version: 0.1.0
+servers:
+  - url: http://localhost:8080
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    ScanUploadRequest:
+      type: object
+      required: [schema_version, repository, source, snapshot]
+      properties:
+        schema_version:
+          type: string
+          const: v1alpha1
+        repository:
+          $ref: "#/components/schemas/RepositoryInput"
+        source:
+          $ref: "#/components/schemas/SourceInput"
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        annotation:
+          type: string
+        snapshot:
+          $ref: "#/components/schemas/SnapshotInput"
+    RepositoryInput:
+      type: object
+      required: [slug, name, url, default_branch]
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        url:
+          type: string
+        default_branch:
+          type: string
+    SourceInput:
+      type: object
+      required: [commit_sha, ref, scanned_at]
+      properties:
+        commit_sha:
+          type: string
+        ref:
+          type: string
+        scanned_at:
+          type: string
+          format: date-time
+    SnapshotInput:
+      type: object
+      required: [root, manifests]
+      properties:
+        root:
+          type: string
+        manifests:
+          type: array
+          items:
+            $ref: "#/components/schemas/ManifestInput"
+        warnings:
+          type: array
+          items:
+            type: string
+    RawDeplensSnapshot:
+      type: object
+      required: [root, manifests]
+      properties:
+        root:
+          type: string
+        manifests:
+          type: array
+          items:
+            $ref: "#/components/schemas/ManifestInput"
+        warnings:
+          type: array
+          items:
+            type: string
+    ManifestInput:
+      type: object
+      required: [type, path, has_dependencies]
+      properties:
+        type:
+          type: string
+        path:
+          type: string
+        has_dependencies:
+          type: [boolean, "null"]
+        dependencies:
+          type: array
+          items:
+            $ref: "#/components/schemas/DependencyInput"
+        warnings:
+          type: array
+          items:
+            type: string
+    DependencyInput:
+      type: object
+      required: [raw]
+      properties:
+        raw:
+          type: string
+        name:
+          type: string
+        version:
+          type: string
+        constraint:
+          type: string
+        section:
+          type: string
+        source:
+          type: string
+        extras:
+          type: object
+          additionalProperties:
+            type: string
+    ScanManifestListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScanManifest"
+    ScanManifest:
+      type: object
+      required: [id, type, path, warnings, dependencies]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        path:
+          type: string
+        has_dependencies:
+          type: boolean
+          nullable: true
+        warnings:
+          type: array
+          items:
+            type: string
+        dependencies:
+          type: array
+          items:
+            $ref: "#/components/schemas/ManifestDependency"
+    ManifestDependency:
+      type: object
+      required: [id, raw, name, version, constraint, section, source, extras]
+      properties:
+        id:
+          type: string
+        raw:
+          type: string
+        name:
+          type: string
+        version:
+          type: string
+        constraint:
+          type: string
+        section:
+          type: string
+        source:
+          type: string
+        extras:
+          type: object
+          additionalProperties:
+            type: string
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/scans:
+    get:
+      summary: List scans for the current tenant
+      parameters:
+        - in: query
+          name: repository_slug
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: from
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: to
+          required: true
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: OK
+    post:
+      summary: Upload a scan snapshot
+      parameters:
+        - in: header
+          name: X-Deplens-Repository-Slug
+          required: false
+          schema:
+            type: string
+          description: Required when uploading raw deplens JSON.
+        - in: header
+          name: X-Deplens-Repository-Name
+          required: false
+          schema:
+            type: string
+          description: Optional when uploading raw deplens JSON; defaults to repository slug.
+        - in: header
+          name: X-Deplens-Repository-URL
+          required: false
+          schema:
+            type: string
+          description: Required when uploading raw deplens JSON.
+        - in: header
+          name: X-Deplens-Default-Branch
+          required: false
+          schema:
+            type: string
+          description: Required when uploading raw deplens JSON.
+        - in: header
+          name: X-Deplens-Commit-SHA
+          required: false
+          schema:
+            type: string
+          description: Required when uploading raw deplens JSON.
+        - in: header
+          name: X-Deplens-Ref
+          required: false
+          schema:
+            type: string
+          description: Required when uploading raw deplens JSON.
+        - in: header
+          name: X-Deplens-Scanned-At
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Required when uploading raw deplens JSON.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/ScanUploadRequest"
+                - $ref: "#/components/schemas/RawDeplensSnapshot"
+      responses:
+        "201":
+          description: Created
+  /api/v1/scans/{scan_id}:
+    get:
+      summary: Get a scan by ID
+      parameters:
+        - in: path
+          name: scan_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+  /api/v1/scans/{scan_id}/manifests:
+    get:
+      summary: List manifests for a scan
+      parameters:
+        - in: path
+          name: scan_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Scan manifest detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanManifestListResponse"
+  /api/v1/scans/{scan_id}/metadata:
+    patch:
+      summary: Update scan labels and annotation
+      parameters:
+        - in: path
+          name: scan_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+  /api/v1/repositories:
+    get:
+      summary: List repositories for the current tenant
+      responses:
+        "200":
+          description: OK
+  /api/v1/tokens:
+    post:
+      summary: Create an API token for the active tenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [label, scopes]
+              properties:
+                label:
+                  type: string
+                scopes:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "201":
+          description: Created
