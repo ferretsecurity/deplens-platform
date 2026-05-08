@@ -46,7 +46,6 @@ curl -X POST http://localhost:8080/api/v1/scans \
   -H 'Content-Type: application/json' \
   -d '{
     "schema_version":"v1alpha1",
-    "project":{"slug":"core","name":"Core"},
     "repository":{"slug":"repo","name":"Repo","url":"https://example.com/repo.git","default_branch":"main"},
     "source":{"commit_sha":"abc123","ref":"refs/heads/main","scanned_at":"2026-05-04T10:00:00Z"},
     "snapshot":{"root":".","manifests":[]}
@@ -63,8 +62,6 @@ deplens -json /path/to/repo > /tmp/deplens.json
 curl -X POST http://localhost:8080/api/v1/scans \
   -H 'Authorization: Bearer <token-from-/api/v1/tokens>' \
   -H 'Content-Type: application/json' \
-  -H 'X-Deplens-Project-Slug: juice-shop' \
-  -H 'X-Deplens-Project-Name: OWASP Juice Shop' \
   -H 'X-Deplens-Repository-Slug: juice-shop' \
   -H 'X-Deplens-Repository-Name: juice-shop' \
   -H 'X-Deplens-Repository-URL: https://github.com/juice-shop/juice-shop' \

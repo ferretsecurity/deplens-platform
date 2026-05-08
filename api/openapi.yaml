@@ -12,13 +12,11 @@ components:
   schemas:
     ScanUploadRequest:
       type: object
-      required: [schema_version, project, repository, source, snapshot]
+      required: [schema_version, repository, source, snapshot]
       properties:
         schema_version:
           type: string
           const: v1alpha1
-        project:
-          $ref: "#/components/schemas/ProjectInput"
         repository:
           $ref: "#/components/schemas/RepositoryInput"
         source:
@@ -31,14 +29,6 @@ components:
           type: string
         snapshot:
           $ref: "#/components/schemas/SnapshotInput"
-    ProjectInput:
-      type: object
-      required: [slug, name]
-      properties:
-        slug:
-          type: string
-        name:
-          type: string
     RepositoryInput:
       type: object
       required: [slug, name, url, default_branch]
@@ -210,18 +200,6 @@ paths:
       summary: Upload a scan snapshot
       parameters:
         - in: header
-          name: X-Deplens-Project-Slug
-          required: false
-          schema:
-            type: string
-          description: Required when uploading raw deplens JSON.
-        - in: header
-          name: X-Deplens-Project-Name
-          required: false
-          schema:
-            type: string
-          description: Optional when uploading raw deplens JSON; defaults to project slug.
-        - in: header
           name: X-Deplens-Repository-Slug
           required: false
           schema:
@@ -312,12 +290,6 @@ paths:
           required: true
           schema:
             type: string
-      responses:
-        "200":
-          description: OK
-  /api/v1/projects:
-    get:
-      summary: List projects for the current tenant
       responses:
         "200":
           description: OK

@@ -18,7 +18,6 @@ func TestUploadScanReturnsCreatedForValidBearerToken(t *testing.T) {
 
 	body := []byte(`{
 	  "schema_version": "v1alpha1",
-	  "project": {"slug":"core","name":"Core"},
 	  "repository": {"slug":"repo","name":"Repo","url":"https://example.com/repo.git","default_branch":"main"},
 	  "source": {"commit_sha":"abc123","ref":"refs/heads/main","scanned_at":"2026-05-04T10:00:00Z"},
 	  "snapshot": {
@@ -114,8 +113,6 @@ func TestUploadRawDeplensJSONReturnsCreatedForValidBearerToken(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/scans", bytes.NewReader(body))
 	req.Header.Set("Authorization", "Bearer bootstrap-token")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Deplens-Project-Slug", "juice-shop")
-	req.Header.Set("X-Deplens-Project-Name", "OWASP Juice Shop")
 	req.Header.Set("X-Deplens-Repository-Slug", "juice-shop")
 	req.Header.Set("X-Deplens-Repository-Name", "juice-shop")
 	req.Header.Set("X-Deplens-Repository-URL", "https://github.com/juice-shop/juice-shop")

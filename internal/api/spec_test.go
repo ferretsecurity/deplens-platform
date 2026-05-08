@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestOpenAPIDefinesScanUploadAndHistoryPaths(t *testing.T) {
@@ -18,7 +20,6 @@ func TestOpenAPIDefinesScanUploadAndHistoryPaths(t *testing.T) {
 		"/api/v1/scans/{scan_id}:",
 		"/api/v1/scans/{scan_id}/manifests:",
 		"/api/v1/scans/{scan_id}/metadata:",
-		"/api/v1/projects:",
 		"/api/v1/repositories:",
 		"/api/v1/tokens:",
 	} {
@@ -29,4 +30,13 @@ func TestOpenAPIDefinesScanUploadAndHistoryPaths(t *testing.T) {
 	if !strings.Contains(spec, "ScanUploadRequest") {
 		t.Fatal("OpenAPI spec missing ScanUploadRequest schema")
 	}
+}
+
+func TestOpenAPISpecDoesNotExposeProjects(t *testing.T) {
+	data, err := os.ReadFile("../../api/openapi.yaml")
+	require.NoError(t, err)
+	require.NotContains(t, string(data), "/api/v1/projects")
+	require.NotContains(t, string(data), "X-Deplens-Project-Slug")
+	require.NotContains(t, string(data), "X-Deplens-Project-Name")
+	require.NotContains(t, string(data), "\"project\"")
 }
