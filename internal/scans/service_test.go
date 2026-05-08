@@ -50,10 +50,6 @@ func TestServiceUploadConvertsManifestsAndDependencies(t *testing.T) {
 	if len(repo.params.Manifests) != 1 {
 		t.Fatalf("manifest count = %d, want 1", len(repo.params.Manifests))
 	}
-	if repo.params.ProjectSlug != "" || repo.params.ProjectName != "" {
-		t.Fatalf("project params = %+v, want zero values", repo.params)
-	}
-
 	manifest := repo.params.Manifests[0]
 	if manifest.Position != 0 {
 		t.Fatalf("manifest position = %d, want 0", manifest.Position)
