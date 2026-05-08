@@ -97,6 +97,77 @@ func TestListScanManifestsReturnsNestedDependenciesInOrder(t *testing.T) {
 	}
 }
 
+func TestCreateScanTracksManifestLifecycle(t *testing.T) {
+	ctx := context.Background()
+	db, databaseURL := openTestDatabase(t)
+
+	if err := Migrate(databaseURL); err != nil {
+		t.Fatalf("Migrate() error = %v", err)
+	}
+
+	store := Store{DB: db}
+	tenantID := mustCreateTenant(t, ctx, db)
+
+	firstID, err := store.CreateScan(ctx, UploadScanParams{
+		TenantID:       tenantID,
+		RepositorySlug: "repo",
+		RepositoryName: "Repo",
+		URL:            "https://example.com/repo.git",
+		DefaultBranch:  "main",
+		ArtifactKey:    "artifact-1",
+		ArtifactSHA256: "sha-1",
+		SchemaVersion:  "v1alpha1",
+		RootPath:       ".",
+		CommitSHA:      "commit-1",
+		SourceRef:      "refs/heads/main",
+		ScannedAt:      time.Date(2026, 5, 8, 10, 0, 0, 0, time.UTC),
+		Manifests: []UploadManifestParams{
+			{Position: 0, Type: "js", Path: "package.json"},
+			{Position: 1, Type: "rust", Path: "Cargo.lock"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateScan() first error = %v", err)
+	}
+	if firstID == "" {
+		t.Fatal("CreateScan() first ID is empty")
+	}
+
+	secondID, err := store.CreateScan(ctx, UploadScanParams{
+		TenantID:       tenantID,
+		RepositorySlug: "repo",
+		RepositoryName: "Repo",
+		URL:            "https://example.com/repo.git",
+		DefaultBranch:  "main",
+		ArtifactKey:    "artifact-2",
+		ArtifactSHA256: "sha-2",
+		SchemaVersion:  "v1alpha1",
+		RootPath:       ".",
+		CommitSHA:      "commit-2",
+		SourceRef:      "refs/heads/main",
+		ScannedAt:      time.Date(2026, 5, 9, 10, 0, 0, 0, time.UTC),
+		Manifests: []UploadManifestParams{
+			{Position: 0, Type: "js", Path: "package.json"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateScan() second error = %v", err)
+	}
+	if secondID == "" {
+		t.Fatal("CreateScan() second ID is empty")
+	}
+
+	rows, err := store.DB.Query(ctx, `
+		select path, first_seen_at, last_seen_at, is_active
+		from manifests
+		order by path asc
+	`)
+	if err != nil {
+		t.Fatalf("query manifests error = %v", err)
+	}
+	defer rows.Close()
+}
+
 func mustCreateScanWithDetails(t *testing.T, ctx context.Context, store Store, tenantID string) string {
 	t.Helper()
 

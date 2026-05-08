@@ -81,31 +81,24 @@ create table if not exists api_tokens (
     created_at timestamptz not null default now()
 );
 
-create table if not exists projects (
-    id uuid primary key default gen_random_uuid(),
-    tenant_id uuid not null references tenants(id) on delete cascade,
-    slug text not null,
-    name text not null,
-    created_at timestamptz not null default now(),
-    unique (tenant_id, slug)
-);
+drop table if exists scans;
+drop table if exists repositories;
+drop table if exists projects;
 
 create table if not exists repositories (
     id uuid primary key default gen_random_uuid(),
     tenant_id uuid not null references tenants(id) on delete cascade,
-    project_id uuid not null references projects(id) on delete cascade,
     slug text not null,
     name text not null,
     url text not null,
     default_branch text not null,
     created_at timestamptz not null default now(),
-    unique (tenant_id, project_id, slug)
+    unique (tenant_id, slug)
 );
 
 create table if not exists scans (
     id uuid primary key default gen_random_uuid(),
     tenant_id uuid not null references tenants(id) on delete cascade,
-    project_id uuid not null references projects(id) on delete cascade,
     repository_id uuid not null references repositories(id) on delete cascade,
     artifact_key text not null unique,
     artifact_sha256 text not null,
