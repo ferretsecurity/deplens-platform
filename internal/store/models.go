@@ -13,6 +13,8 @@ type MembershipRecord struct {
 	Role       string `json:"role"`
 }
 
+// UploadScanParams carries repository-only scan upload metadata.
+// ProjectSlug and ProjectName remain for the existing store write path.
 type UploadScanParams struct {
 	TenantID            string
 	ProjectSlug         string
@@ -68,12 +70,12 @@ type ScanManifestItem struct {
 }
 
 type ManifestDependencyItem struct {
-	ID         string   `json:"id"`
-	Raw        string   `json:"raw"`
-	Name       string   `json:"name"`
-	Version    string   `json:"version"`
-	Constraint string   `json:"constraint"`
-	Section    string   `json:"section"`
-	Source     string   `json:"source"`
+	ID         string            `json:"id"`
+	Raw        string            `json:"raw"`
+	Name       string            `json:"name"`
+	Version    string            `json:"version"`
+	Constraint string            `json:"constraint"`
+	Section    string            `json:"section"`
+	Source     string            `json:"source"`
 	Extras     map[string]string `json:"extras"`
 }

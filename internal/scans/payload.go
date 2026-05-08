@@ -2,7 +2,6 @@ package scans
 
 type UploadRequest struct {
 	SchemaVersion string            `json:"schema_version"`
-	Project       ProjectInput      `json:"project"`
 	Repository    RepositoryInput   `json:"repository"`
 	Source        SourceInput       `json:"source"`
 	Labels        map[string]string `json:"labels,omitempty"`
@@ -14,11 +13,6 @@ type RawSnapshot struct {
 	Root      string          `json:"root"`
 	Manifests []ManifestInput `json:"manifests"`
 	Warnings  []string        `json:"warnings,omitempty"`
-}
-
-type ProjectInput struct {
-	Slug string `json:"slug"`
-	Name string `json:"name"`
 }
 
 type RepositoryInput struct {

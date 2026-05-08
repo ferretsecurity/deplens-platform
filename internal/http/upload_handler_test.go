@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/ferretsecurity/deplens-platform/internal/scans"
@@ -157,6 +158,26 @@ func TestUploadRawDeplensJSONFailsWithoutRequiredHeaders(t *testing.T) {
 
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d", rr.Code, http.StatusBadRequest)
+	}
+}
+
+func TestDecodeUploadRequestAcceptsRawRepositoryOnlyHeaders(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scans", strings.NewReader(`{"root":".","manifests":[]}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Deplens-Repository-Slug", "repo")
+	req.Header.Set("X-Deplens-Repository-Name", "Repo")
+	req.Header.Set("X-Deplens-Repository-URL", "https://example.com/repo.git")
+	req.Header.Set("X-Deplens-Default-Branch", "main")
+	req.Header.Set("X-Deplens-Commit-SHA", "abc123")
+	req.Header.Set("X-Deplens-Ref", "refs/heads/main")
+	req.Header.Set("X-Deplens-Scanned-At", "2026-05-08T10:00:00Z")
+
+	input, err := decodeUploadRequest(req)
+	if err != nil {
+		t.Fatalf("decodeUploadRequest() error = %v", err)
+	}
+	if input.Repository.Slug != "repo" {
+		t.Fatalf("repository slug = %q, want repo", input.Repository.Slug)
 	}
 }
 

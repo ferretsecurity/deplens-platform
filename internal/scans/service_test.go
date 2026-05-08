@@ -13,7 +13,6 @@ func TestServiceUploadConvertsManifestsAndDependencies(t *testing.T) {
 	hasDependencies := true
 	input := UploadRequest{
 		SchemaVersion: "v1alpha1",
-		Project:       ProjectInput{Slug: "core", Name: "Core"},
 		Repository:    RepositoryInput{Slug: "repo", Name: "Repo", URL: "https://example.com/repo.git", DefaultBranch: "main"},
 		Source:        SourceInput{CommitSHA: "abc123", Ref: "refs/heads/main", ScannedAt: "2026-05-06T08:00:00Z"},
 		Snapshot: SnapshotInput{
@@ -50,6 +49,9 @@ func TestServiceUploadConvertsManifestsAndDependencies(t *testing.T) {
 
 	if len(repo.params.Manifests) != 1 {
 		t.Fatalf("manifest count = %d, want 1", len(repo.params.Manifests))
+	}
+	if repo.params.ProjectSlug != "" || repo.params.ProjectName != "" {
+		t.Fatalf("project params = %+v, want zero values", repo.params)
 	}
 
 	manifest := repo.params.Manifests[0]

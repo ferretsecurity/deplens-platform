@@ -66,10 +66,6 @@ func decodeUploadRequest(r *http.Request) (scans.UploadRequest, error) {
 
 	return scans.UploadRequest{
 		SchemaVersion: "v1alpha1",
-		Project: scans.ProjectInput{
-			Slug: headers.projectSlug,
-			Name: headers.projectName,
-		},
 		Repository: scans.RepositoryInput{
 			Slug:          headers.repositorySlug,
 			Name:          headers.repositoryName,
@@ -90,8 +86,6 @@ func decodeUploadRequest(r *http.Request) (scans.UploadRequest, error) {
 }
 
 type rawUploadMetadata struct {
-	projectSlug    string
-	projectName    string
 	repositorySlug string
 	repositoryName string
 	repositoryURL  string
@@ -103,8 +97,6 @@ type rawUploadMetadata struct {
 
 func rawUploadHeaders(header http.Header) (rawUploadMetadata, error) {
 	metadata := rawUploadMetadata{
-		projectSlug:    strings.TrimSpace(header.Get("X-Deplens-Project-Slug")),
-		projectName:    strings.TrimSpace(header.Get("X-Deplens-Project-Name")),
 		repositorySlug: strings.TrimSpace(header.Get("X-Deplens-Repository-Slug")),
 		repositoryName: strings.TrimSpace(header.Get("X-Deplens-Repository-Name")),
 		repositoryURL:  strings.TrimSpace(header.Get("X-Deplens-Repository-URL")),
@@ -118,7 +110,6 @@ func rawUploadHeaders(header http.Header) (rawUploadMetadata, error) {
 		name  string
 		value string
 	}{
-		{"X-Deplens-Project-Slug", metadata.projectSlug},
 		{"X-Deplens-Repository-Slug", metadata.repositorySlug},
 		{"X-Deplens-Repository-URL", metadata.repositoryURL},
 		{"X-Deplens-Default-Branch", metadata.defaultBranch},
@@ -129,10 +120,6 @@ func rawUploadHeaders(header http.Header) (rawUploadMetadata, error) {
 		if required.value == "" {
 			return rawUploadMetadata{}, errors.New(required.name + " is required for raw deplens uploads")
 		}
-	}
-
-	if metadata.projectName == "" {
-		metadata.projectName = metadata.projectSlug
 	}
 	if metadata.repositoryName == "" {
 		metadata.repositoryName = metadata.repositorySlug

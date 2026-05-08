@@ -61,8 +61,6 @@ func (s Service) Upload(ctx context.Context, tenantID string, input UploadReques
 
 	return s.Store.CreateScan(ctx, store.UploadScanParams{
 		TenantID:            tenantID,
-		ProjectSlug:         input.Project.Slug,
-		ProjectName:         input.Project.Name,
 		RepositorySlug:      input.Repository.Slug,
 		RepositoryName:      input.Repository.Name,
 		URL:                 input.Repository.URL,
