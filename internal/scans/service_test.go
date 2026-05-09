@@ -13,7 +13,7 @@ func TestServiceUploadConvertsManifestsAndDependencies(t *testing.T) {
 	hasDependencies := true
 	input := UploadRequest{
 		SchemaVersion: "v1alpha1",
-		Repository:    RepositoryInput{Slug: "repo", Name: "Repo", URL: "https://example.com/repo.git", DefaultBranch: "main"},
+		Repository:    RepositoryInput{Name: "Repo", URL: "https://example.com/repo.git", DefaultBranch: "main"},
 		Source:        SourceInput{CommitSHA: "abc123", Ref: "refs/heads/main", ScannedAt: "2026-05-06T08:00:00Z"},
 		Snapshot: SnapshotInput{
 			Root: ".",
@@ -76,6 +76,9 @@ func TestServiceUploadConvertsManifestsAndDependencies(t *testing.T) {
 	}
 	if dependency.Extras["scope"] != "ui" {
 		t.Fatalf("dependency extras = %#v, want scope preserved", dependency.Extras)
+	}
+	if repo.params.RepositoryName != "Repo" {
+		t.Fatalf("repository name = %q, want Repo", repo.params.RepositoryName)
 	}
 }
 

@@ -10,7 +10,7 @@ import (
 
 type ScanListItem struct {
 	ID              string            `json:"id"`
-	RepositorySlug  string            `json:"repository_slug"`
+	RepositoryID    string            `json:"repository_id"`
 	CommitSHA       string            `json:"commit_sha"`
 	ScannedAt       time.Time         `json:"scanned_at"`
 	ManifestCount   int               `json:"manifest_count"`
@@ -20,17 +20,17 @@ type ScanListItem struct {
 }
 
 type RepositoryListItem struct {
-	Slug          string `json:"slug"`
+	ID            string `json:"id"`
 	Name          string `json:"name"`
 	URL           string `json:"url"`
 	DefaultBranch string `json:"default_branch"`
 }
 
 type ScanFilter struct {
-	TenantID       string
-	RepositorySlug string
-	From           time.Time
-	To             time.Time
+	TenantID     string
+	RepositoryID string
+	From         time.Time
+	To           time.Time
 }
 
 type ScanStore struct {
@@ -39,10 +39,10 @@ type ScanStore struct {
 
 func (s ScanStore) ListRepositories(ctx context.Context, tenantID string) ([]RepositoryListItem, error) {
 	rows, err := s.DB.Query(ctx, `
-		select r.slug, r.name, r.url, r.default_branch
+		select r.id, r.name, r.url, r.default_branch
 		from repositories r
 		where r.tenant_id = $1
-		order by r.slug asc
+		order by r.name asc, r.id asc
 	`, tenantID)
 	if err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ func (s ScanStore) ListRepositories(ctx context.Context, tenantID string) ([]Rep
 	items := make([]RepositoryListItem, 0)
 	for rows.Next() {
 		var item RepositoryListItem
-		if err := rows.Scan(&item.Slug, &item.Name, &item.URL, &item.DefaultBranch); err != nil {
+		if err := rows.Scan(&item.ID, &item.Name, &item.URL, &item.DefaultBranch); err != nil {
 			return nil, err
 		}
 		items = append(items, item)
@@ -62,12 +62,11 @@ func (s ScanStore) ListRepositories(ctx context.Context, tenantID string) ([]Rep
 
 func (s ScanStore) ListScans(ctx context.Context, filter ScanFilter) ([]ScanListItem, error) {
 	rows, err := s.DB.Query(ctx, `
-		select s.id, r.slug, s.commit_sha, s.scanned_at, s.manifest_count, s.dependency_count, s.labels, s.annotation
+		select s.id, s.repository_id, s.commit_sha, s.scanned_at, s.manifest_count, s.dependency_count, s.labels, s.annotation
 		from scans s
-		join repositories r on r.id = s.repository_id
-		where s.tenant_id = $1 and r.slug = $2 and s.scanned_at between $3 and $4
+		where s.tenant_id = $1 and s.repository_id = $2 and s.scanned_at between $3 and $4
 		order by s.scanned_at desc
-	`, filter.TenantID, filter.RepositorySlug, filter.From, filter.To)
+	`, filter.TenantID, filter.RepositoryID, filter.From, filter.To)
 	if err != nil {
 		return nil, err
 	}
@@ -88,11 +87,10 @@ func (s ScanStore) GetScan(ctx context.Context, tenantID string, scanID string) 
 	var item ScanListItem
 	var labelsJSON []byte
 	err := s.DB.QueryRow(ctx, `
-		select s.id, r.slug, s.commit_sha, s.scanned_at, s.manifest_count, s.dependency_count, s.labels, s.annotation
+		select s.id, s.repository_id, s.commit_sha, s.scanned_at, s.manifest_count, s.dependency_count, s.labels, s.annotation
 		from scans s
-		join repositories r on r.id = s.repository_id
 		where s.tenant_id = $1 and s.id = $2
-	`, tenantID, scanID).Scan(&item.ID, &item.RepositorySlug, &item.CommitSHA, &item.ScannedAt, &item.ManifestCount, &item.DependencyCount, &labelsJSON, &item.Annotation)
+	`, tenantID, scanID).Scan(&item.ID, &item.RepositoryID, &item.CommitSHA, &item.ScannedAt, &item.ManifestCount, &item.DependencyCount, &labelsJSON, &item.Annotation)
 	if err != nil {
 		return ScanListItem{}, err
 	}
@@ -191,7 +189,7 @@ type scanRows interface {
 func scanListItemFromRows(row scanRows) (ScanListItem, error) {
 	var item ScanListItem
 	var labelsJSON []byte
-	if err := row.Scan(&item.ID, &item.RepositorySlug, &item.CommitSHA, &item.ScannedAt, &item.ManifestCount, &item.DependencyCount, &labelsJSON, &item.Annotation); err != nil {
+	if err := row.Scan(&item.ID, &item.RepositoryID, &item.CommitSHA, &item.ScannedAt, &item.ManifestCount, &item.DependencyCount, &labelsJSON, &item.Annotation); err != nil {
 		return ScanListItem{}, err
 	}
 	if err := json.Unmarshal(labelsJSON, &item.Labels); err != nil {

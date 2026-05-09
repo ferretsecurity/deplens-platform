@@ -13,10 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestListScansSupportsRepositoryAndTimeFilters(t *testing.T) {
+func TestListScansSupportsRepositoryIDAndTimeFilters(t *testing.T) {
 	handler := newTestQueryRouter(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/scans?repository_slug=repo&from=2026-05-01T00:00:00Z&to=2026-05-05T00:00:00Z", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/scans?repository_id=11111111-1111-1111-1111-111111111111&from=2026-05-01T00:00:00Z&to=2026-05-05T00:00:00Z", nil)
 	req.Header.Set("Authorization", "Bearer bootstrap-token")
 	rr := httptest.NewRecorder()
 
@@ -25,7 +25,21 @@ func TestListScansSupportsRepositoryAndTimeFilters(t *testing.T) {
 	require.Equal(t, http.StatusOK, rr.Code)
 }
 
-func TestGetScanOmitsProjectSlug(t *testing.T) {
+func TestListScansRejectsInvalidRepositoryIDBeforeStore(t *testing.T) {
+	store := &fakeQueryStore{}
+	handler := newTestQueryRouterWithStore(t, store)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/scans?repository_id=repo-123&from=2026-05-01T00:00:00Z&to=2026-05-05T00:00:00Z", nil)
+	req.Header.Set("Authorization", "Bearer bootstrap-token")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+	require.Zero(t, store.listScansCalls)
+}
+
+func TestGetScanReturnsRepositoryID(t *testing.T) {
 	handler := newTestQueryRouter(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/scans/scan-123", nil)
@@ -36,10 +50,11 @@ func TestGetScanOmitsProjectSlug(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.NotContains(t, rr.Body.String(), "project_slug")
-	require.Contains(t, rr.Body.String(), "repository_slug")
+	require.NotContains(t, rr.Body.String(), "repository_slug")
+	require.Contains(t, rr.Body.String(), "repository_id")
 }
 
-func TestListRepositoriesOmitsProjectSlug(t *testing.T) {
+func TestListRepositoriesReturnsRepositoryID(t *testing.T) {
 	handler := newTestQueryRouter(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/repositories", nil)
@@ -50,6 +65,8 @@ func TestListRepositoriesOmitsProjectSlug(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.NotContains(t, rr.Body.String(), "project_slug")
+	require.NotContains(t, rr.Body.String(), `"slug"`)
+	require.Contains(t, rr.Body.String(), `"id":"repo-123"`)
 }
 
 func TestListScanManifestsReturnsPath(t *testing.T) {
@@ -80,7 +97,12 @@ func TestPatchScanMetadataReturnsOK(t *testing.T) {
 
 func newTestQueryRouter(t *testing.T) http.Handler {
 	t.Helper()
-	service := NewProductionQueryService(fakeTokenLookup{}, fakeQueryStore{})
+	return newTestQueryRouterWithStore(t, &fakeQueryStore{})
+}
+
+func newTestQueryRouterWithStore(t *testing.T, reads QueryStore) http.Handler {
+	t.Helper()
+	service := NewProductionQueryService(fakeTokenLookup{}, reads)
 	return NewQueryRouter(service)
 }
 
@@ -93,27 +115,30 @@ func (fakeTokenLookup) FindToken(_ context.Context, tokenHash string) (string, [
 	return "tenant-1", []string{"scan:read", "scan:metadata:write"}, nil
 }
 
-type fakeQueryStore struct{}
+type fakeQueryStore struct {
+	listScansCalls int
+}
 
-func (fakeQueryStore) ListRepositories(_ context.Context, tenantID string) ([]store.RepositoryListItem, error) {
+func (*fakeQueryStore) ListRepositories(_ context.Context, tenantID string) ([]store.RepositoryListItem, error) {
 	if tenantID != "tenant-1" {
 		return nil, errUnauthorized
 	}
 	return []store.RepositoryListItem{{
-		Slug:          "repo",
+		ID:            "repo-123",
 		Name:          "Repo",
 		URL:           "https://example.invalid/repo.git",
 		DefaultBranch: "main",
 	}}, nil
 }
 
-func (fakeQueryStore) ListScans(_ context.Context, filter store.ScanFilter) ([]store.ScanListItem, error) {
-	if filter.TenantID != "tenant-1" || filter.RepositorySlug != "repo" {
+func (f *fakeQueryStore) ListScans(_ context.Context, filter store.ScanFilter) ([]store.ScanListItem, error) {
+	f.listScansCalls++
+	if filter.TenantID != "tenant-1" || filter.RepositoryID != "11111111-1111-1111-1111-111111111111" {
 		return nil, errUnauthorized
 	}
 	return []store.ScanListItem{{
 		ID:              "scan-123",
-		RepositorySlug:  "repo",
+		RepositoryID:    "repo-123",
 		CommitSHA:       "abc123",
 		ScannedAt:       time.Date(2026, time.May, 4, 12, 0, 0, 0, time.UTC),
 		ManifestCount:   1,
@@ -123,13 +148,13 @@ func (fakeQueryStore) ListScans(_ context.Context, filter store.ScanFilter) ([]s
 	}}, nil
 }
 
-func (fakeQueryStore) GetScan(_ context.Context, tenantID string, scanID string) (store.ScanListItem, error) {
+func (*fakeQueryStore) GetScan(_ context.Context, tenantID string, scanID string) (store.ScanListItem, error) {
 	if tenantID != "tenant-1" || scanID != "scan-123" {
 		return store.ScanListItem{}, errUnauthorized
 	}
 	return store.ScanListItem{
 		ID:              "scan-123",
-		RepositorySlug:  "repo",
+		RepositoryID:    "repo-123",
 		CommitSHA:       "abc123",
 		ScannedAt:       time.Date(2026, time.May, 4, 12, 0, 0, 0, time.UTC),
 		ManifestCount:   1,
@@ -139,7 +164,7 @@ func (fakeQueryStore) GetScan(_ context.Context, tenantID string, scanID string)
 	}, nil
 }
 
-func (fakeQueryStore) ListScanManifests(_ context.Context, tenantID string, scanID string) ([]store.ScanManifestItem, error) {
+func (*fakeQueryStore) ListScanManifests(_ context.Context, tenantID string, scanID string) ([]store.ScanManifestItem, error) {
 	if tenantID != "tenant-1" || scanID != "scan-123" {
 		return nil, errUnauthorized
 	}
@@ -152,7 +177,7 @@ func (fakeQueryStore) ListScanManifests(_ context.Context, tenantID string, scan
 	}}, nil
 }
 
-func (fakeQueryStore) UpdateScanMetadata(_ context.Context, tenantID string, scanID string, labels map[string]string, annotation string) error {
+func (*fakeQueryStore) UpdateScanMetadata(_ context.Context, tenantID string, scanID string, labels map[string]string, annotation string) error {
 	if tenantID != "tenant-1" || scanID != "scan-123" || labels["env"] != "prod" || annotation != "blessed build" {
 		return errUnauthorized
 	}

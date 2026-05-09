@@ -111,7 +111,6 @@ func TestCreateScanTracksManifestLifecycle(t *testing.T) {
 
 	firstID, err := store.CreateScan(ctx, UploadScanParams{
 		TenantID:       tenantID,
-		RepositorySlug: "repo",
 		RepositoryName: "Repo",
 		URL:            "https://example.com/repo.git",
 		DefaultBranch:  "main",
@@ -136,7 +135,6 @@ func TestCreateScanTracksManifestLifecycle(t *testing.T) {
 
 	secondID, err := store.CreateScan(ctx, UploadScanParams{
 		TenantID:       tenantID,
-		RepositorySlug: "repo",
 		RepositoryName: "Repo",
 		URL:            "https://example.com/repo.git",
 		DefaultBranch:  "main",
@@ -232,13 +230,110 @@ func TestCreateScanTracksManifestLifecycle(t *testing.T) {
 	require.Equal(t, packageManifestIDs[0], packageManifestIDs[1])
 }
 
+func TestCreateScanUpsertsRepositoryByNameAndOverwritesMetadata(t *testing.T) {
+	ctx := context.Background()
+	db, databaseURL := openTestDatabase(t)
+	require.NoError(t, Migrate(databaseURL))
+
+	store := Store{DB: db}
+	tenantID := mustCreateTenant(t, ctx, db)
+
+	_, err := store.CreateScan(ctx, UploadScanParams{
+		TenantID:       tenantID,
+		RepositoryName: "Repo",
+		URL:            "https://example.com/one.git",
+		DefaultBranch:  "main",
+		ArtifactKey:    "artifact-1",
+		ArtifactSHA256: "sha-1",
+		SchemaVersion:  "v1alpha1",
+		RootPath:       ".",
+		CommitSHA:      "commit-1",
+		SourceRef:      "refs/heads/main",
+		ScannedAt:      time.Date(2026, 5, 8, 10, 0, 0, 0, time.UTC),
+	})
+	require.NoError(t, err)
+
+	_, err = store.CreateScan(ctx, UploadScanParams{
+		TenantID:       tenantID,
+		RepositoryName: "Repo",
+		URL:            "https://example.com/two.git",
+		DefaultBranch:  "stable",
+		ArtifactKey:    "artifact-2",
+		ArtifactSHA256: "sha-2",
+		SchemaVersion:  "v1alpha1",
+		RootPath:       ".",
+		CommitSHA:      "commit-2",
+		SourceRef:      "refs/heads/stable",
+		ScannedAt:      time.Date(2026, 5, 9, 10, 0, 0, 0, time.UTC),
+	})
+	require.NoError(t, err)
+
+	var url string
+	var branch string
+	err = db.QueryRow(ctx, `
+		select url, default_branch
+		from repositories
+		where tenant_id = $1 and name = $2
+	`, tenantID, "Repo").Scan(&url, &branch)
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com/two.git", url)
+	require.Equal(t, "stable", branch)
+}
+
+func TestCreateScanWithoutSlugKeepsRepositoriesDistinctByName(t *testing.T) {
+	ctx := context.Background()
+	db, databaseURL := openTestDatabase(t)
+	require.NoError(t, Migrate(databaseURL))
+
+	store := Store{DB: db}
+	tenantID := mustCreateTenant(t, ctx, db)
+
+	_, err := store.CreateScan(ctx, UploadScanParams{
+		TenantID:       tenantID,
+		RepositoryName: "Repo One",
+		URL:            "https://example.com/one.git",
+		DefaultBranch:  "main",
+		ArtifactKey:    "artifact-1",
+		ArtifactSHA256: "sha-1",
+		SchemaVersion:  "v1alpha1",
+		RootPath:       ".",
+		CommitSHA:      "commit-1",
+		SourceRef:      "refs/heads/main",
+		ScannedAt:      time.Date(2026, 5, 8, 10, 0, 0, 0, time.UTC),
+	})
+	require.NoError(t, err)
+
+	_, err = store.CreateScan(ctx, UploadScanParams{
+		TenantID:       tenantID,
+		RepositoryName: "Repo Two",
+		URL:            "https://example.com/two.git",
+		DefaultBranch:  "stable",
+		ArtifactKey:    "artifact-2",
+		ArtifactSHA256: "sha-2",
+		SchemaVersion:  "v1alpha1",
+		RootPath:       ".",
+		CommitSHA:      "commit-2",
+		SourceRef:      "refs/heads/stable",
+		ScannedAt:      time.Date(2026, 5, 9, 10, 0, 0, 0, time.UTC),
+	})
+	require.NoError(t, err)
+
+	var repositoryCount int
+	err = db.QueryRow(ctx, `
+		select count(*)
+		from repositories
+		where tenant_id = $1
+	`, tenantID).Scan(&repositoryCount)
+	require.NoError(t, err)
+	require.Equal(t, 2, repositoryCount)
+}
+
 func mustCreateScanWithDetails(t *testing.T, ctx context.Context, store Store, tenantID string) string {
 	t.Helper()
 
 	hasDependencies := true
 	scanID, err := store.CreateScan(ctx, UploadScanParams{
 		TenantID:            tenantID,
-		RepositorySlug:      "repo",
 		RepositoryName:      "Repo",
 		URL:                 "https://example.com/repo.git",
 		DefaultBranch:       "main",

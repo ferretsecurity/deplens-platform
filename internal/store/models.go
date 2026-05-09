@@ -16,7 +16,6 @@ type MembershipRecord struct {
 // UploadScanParams carries repository-only scan upload metadata.
 type UploadScanParams struct {
 	TenantID            string
-	RepositorySlug      string
 	RepositoryName      string
 	URL                 string
 	DefaultBranch       string

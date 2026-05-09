@@ -18,7 +18,7 @@ func TestUploadScanReturnsCreatedForValidBearerToken(t *testing.T) {
 
 	body := []byte(`{
 	  "schema_version": "v1alpha1",
-	  "repository": {"slug":"repo","name":"Repo","url":"https://example.com/repo.git","default_branch":"main"},
+	  "repository": {"name":"Repo","url":"https://example.com/repo.git","default_branch":"main"},
 	  "source": {"commit_sha":"abc123","ref":"refs/heads/main","scanned_at":"2026-05-04T10:00:00Z"},
 	  "snapshot": {
 	    "root": ".",
@@ -113,7 +113,6 @@ func TestUploadRawDeplensJSONReturnsCreatedForValidBearerToken(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/scans", bytes.NewReader(body))
 	req.Header.Set("Authorization", "Bearer bootstrap-token")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Deplens-Repository-Slug", "juice-shop")
 	req.Header.Set("X-Deplens-Repository-Name", "juice-shop")
 	req.Header.Set("X-Deplens-Repository-URL", "https://github.com/juice-shop/juice-shop")
 	req.Header.Set("X-Deplens-Default-Branch", "master")
@@ -129,6 +128,9 @@ func TestUploadRawDeplensJSONReturnsCreatedForValidBearerToken(t *testing.T) {
 	}
 	if len(service.lastInput.Snapshot.Manifests) != 1 {
 		t.Fatalf("manifest count = %d, want 1", len(service.lastInput.Snapshot.Manifests))
+	}
+	if service.lastInput.Repository.Name != "juice-shop" {
+		t.Fatalf("repository name = %q, want juice-shop", service.lastInput.Repository.Name)
 	}
 	dependency := service.lastInput.Snapshot.Manifests[0].Dependencies[0]
 	if dependency.Extras["checksum"] != "abc" {
@@ -158,10 +160,37 @@ func TestUploadRawDeplensJSONFailsWithoutRequiredHeaders(t *testing.T) {
 	}
 }
 
+func TestUploadScanRejectsWrappedPayloadWithoutRepositoryName(t *testing.T) {
+	service := &fakeUploadService{
+		allowedToken: "bootstrap-token",
+	}
+	handler := NewRouter(service)
+
+	body := []byte(`{
+	  "schema_version": "v1alpha1",
+	  "repository": {"slug":"repo","url":"https://example.com/repo.git","default_branch":"main"},
+	  "source": {"commit_sha":"abc123","ref":"refs/heads/main","scanned_at":"2026-05-04T10:00:00Z"},
+	  "snapshot": {"root":".","manifests":[]}
+	}`)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scans", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer bootstrap-token")
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", rr.Code, http.StatusBadRequest)
+	}
+	if !strings.Contains(rr.Body.String(), "repository.name is required") {
+		t.Fatalf("body = %q, want repository.name error", rr.Body.String())
+	}
+}
+
 func TestDecodeUploadRequestAcceptsRawRepositoryOnlyHeaders(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/scans", strings.NewReader(`{"root":".","manifests":[]}`))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Deplens-Repository-Slug", "repo")
 	req.Header.Set("X-Deplens-Repository-Name", "Repo")
 	req.Header.Set("X-Deplens-Repository-URL", "https://example.com/repo.git")
 	req.Header.Set("X-Deplens-Default-Branch", "main")
@@ -173,8 +202,8 @@ func TestDecodeUploadRequestAcceptsRawRepositoryOnlyHeaders(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decodeUploadRequest() error = %v", err)
 	}
-	if input.Repository.Slug != "repo" {
-		t.Fatalf("repository slug = %q, want repo", input.Repository.Slug)
+	if input.Repository.Name != "Repo" {
+		t.Fatalf("repository name = %q, want Repo", input.Repository.Name)
 	}
 }
 

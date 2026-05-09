@@ -16,7 +16,6 @@ type RawSnapshot struct {
 }
 
 type RepositoryInput struct {
-	Slug          string `json:"slug"`
 	Name          string `json:"name"`
 	URL           string `json:"url"`
 	DefaultBranch string `json:"default_branch"`
