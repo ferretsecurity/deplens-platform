@@ -48,6 +48,9 @@ func decodeUploadRequest(r *http.Request) (scans.UploadRequest, error) {
 
 	var wrapped scans.UploadRequest
 	if err := json.NewDecoder(bytes.NewReader(body)).Decode(&wrapped); err == nil && wrapped.SchemaVersion != "" {
+		if err := validateWrappedUploadRequest(wrapped); err != nil {
+			return scans.UploadRequest{}, err
+		}
 		return wrapped, nil
 	}
 
@@ -67,7 +70,6 @@ func decodeUploadRequest(r *http.Request) (scans.UploadRequest, error) {
 	return scans.UploadRequest{
 		SchemaVersion: "v1alpha1",
 		Repository: scans.RepositoryInput{
-			Slug:          headers.repositorySlug,
 			Name:          headers.repositoryName,
 			URL:           headers.repositoryURL,
 			DefaultBranch: headers.defaultBranch,
@@ -85,8 +87,28 @@ func decodeUploadRequest(r *http.Request) (scans.UploadRequest, error) {
 	}, nil
 }
 
+func validateWrappedUploadRequest(input scans.UploadRequest) error {
+	switch {
+	case strings.TrimSpace(input.Repository.Name) == "":
+		return errors.New("repository.name is required")
+	case strings.TrimSpace(input.Repository.URL) == "":
+		return errors.New("repository.url is required")
+	case strings.TrimSpace(input.Repository.DefaultBranch) == "":
+		return errors.New("repository.default_branch is required")
+	case strings.TrimSpace(input.Source.CommitSHA) == "":
+		return errors.New("source.commit_sha is required")
+	case strings.TrimSpace(input.Source.Ref) == "":
+		return errors.New("source.ref is required")
+	case strings.TrimSpace(input.Source.ScannedAt) == "":
+		return errors.New("source.scanned_at is required")
+	case strings.TrimSpace(input.Snapshot.Root) == "":
+		return errors.New("snapshot.root is required")
+	default:
+		return nil
+	}
+}
+
 type rawUploadMetadata struct {
-	repositorySlug string
 	repositoryName string
 	repositoryURL  string
 	defaultBranch  string
@@ -97,7 +119,6 @@ type rawUploadMetadata struct {
 
 func rawUploadHeaders(header http.Header) (rawUploadMetadata, error) {
 	metadata := rawUploadMetadata{
-		repositorySlug: strings.TrimSpace(header.Get("X-Deplens-Repository-Slug")),
 		repositoryName: strings.TrimSpace(header.Get("X-Deplens-Repository-Name")),
 		repositoryURL:  strings.TrimSpace(header.Get("X-Deplens-Repository-URL")),
 		defaultBranch:  strings.TrimSpace(header.Get("X-Deplens-Default-Branch")),
@@ -110,7 +131,7 @@ func rawUploadHeaders(header http.Header) (rawUploadMetadata, error) {
 		name  string
 		value string
 	}{
-		{"X-Deplens-Repository-Slug", metadata.repositorySlug},
+		{"X-Deplens-Repository-Name", metadata.repositoryName},
 		{"X-Deplens-Repository-URL", metadata.repositoryURL},
 		{"X-Deplens-Default-Branch", metadata.defaultBranch},
 		{"X-Deplens-Commit-SHA", metadata.commitSHA},
@@ -120,9 +141,6 @@ func rawUploadHeaders(header http.Header) (rawUploadMetadata, error) {
 		if required.value == "" {
 			return rawUploadMetadata{}, errors.New(required.name + " is required for raw deplens uploads")
 		}
-	}
-	if metadata.repositoryName == "" {
-		metadata.repositoryName = metadata.repositorySlug
 	}
 
 	return metadata, nil

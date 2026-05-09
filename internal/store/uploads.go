@@ -78,12 +78,12 @@ func (s Store) CreateScan(ctx context.Context, params UploadScanParams) (string,
 
 	var repositoryID string
 	err = tx.QueryRow(ctx, `
-		insert into repositories (tenant_id, slug, name, url, default_branch)
-		values ($1, $2, $3, $4, $5)
-		on conflict (tenant_id, slug)
-		do update set name = excluded.name, url = excluded.url, default_branch = excluded.default_branch
+		insert into repositories (tenant_id, name, url, default_branch)
+		values ($1, $2, $3, $4)
+		on conflict (tenant_id, name)
+		do update set url = excluded.url, default_branch = excluded.default_branch
 		returning id
-	`, params.TenantID, params.RepositorySlug, params.RepositoryName, params.URL, params.DefaultBranch).Scan(&repositoryID)
+	`, params.TenantID, params.RepositoryName, params.URL, params.DefaultBranch).Scan(&repositoryID)
 	if err != nil {
 		return "", err
 	}

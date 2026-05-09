@@ -3,11 +3,13 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
 	"github.com/ferretsecurity/deplens-platform/internal/auth"
 	"github.com/ferretsecurity/deplens-platform/internal/store"
+	"github.com/google/uuid"
 )
 
 type QueryService interface {
@@ -31,6 +33,22 @@ type ProductionQueryService struct {
 	Reads  QueryStore
 }
 
+type badRequestError struct {
+	err error
+}
+
+func (e badRequestError) Error() string {
+	return e.err.Error()
+}
+
+func (e badRequestError) Unwrap() error {
+	return e.err
+}
+
+func newBadRequestError(err error) error {
+	return badRequestError{err: err}
+}
+
 func NewProductionQueryService(lookup TokenLookup, reads QueryStore) ProductionQueryService {
 	return ProductionQueryService{
 		Lookup: lookup,
@@ -52,20 +70,25 @@ func (s ProductionQueryService) ListScans(r *http.Request, token string) (any, e
 		return nil, errUnauthorized
 	}
 
+	repositoryID := r.URL.Query().Get("repository_id")
+	if _, err := uuid.Parse(repositoryID); err != nil {
+		return nil, newBadRequestError(err)
+	}
+
 	from, err := parseTime(r.URL.Query().Get("from"))
 	if err != nil {
-		return nil, err
+		return nil, newBadRequestError(err)
 	}
 	to, err := parseTime(r.URL.Query().Get("to"))
 	if err != nil {
-		return nil, err
+		return nil, newBadRequestError(err)
 	}
 
 	return s.Reads.ListScans(r.Context(), store.ScanFilter{
-		TenantID:       tenantID,
-		RepositorySlug: r.URL.Query().Get("repository_slug"),
-		From:           from,
-		To:             to,
+		TenantID:     tenantID,
+		RepositoryID: repositoryID,
+		From:         from,
+		To:           to,
 	})
 }
 
@@ -150,6 +173,11 @@ func writeJSONResult(w http.ResponseWriter, r *http.Request, fn func(*http.Reque
 	token := auth.BearerToken(r.Header.Get("Authorization"))
 	result, err := fn(r, token)
 	if err != nil {
+		var badRequest badRequestError
+		if errors.As(err, &badRequest) {
+			http.Error(w, badRequest.Error(), http.StatusBadRequest)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}

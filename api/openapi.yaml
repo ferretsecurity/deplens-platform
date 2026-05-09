@@ -31,10 +31,8 @@ components:
           $ref: "#/components/schemas/SnapshotInput"
     RepositoryInput:
       type: object
-      required: [slug, name, url, default_branch]
+      required: [name, url, default_branch]
       properties:
-        slug:
-          type: string
         name:
           type: string
         url:
@@ -118,6 +116,44 @@ components:
           type: object
           additionalProperties:
             type: string
+    RepositorySummary:
+      type: object
+      required: [id, name, url, default_branch]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        url:
+          type: string
+        default_branch:
+          type: string
+    ScanSummary:
+      type: object
+      required: [id, repository_id, commit_sha, scanned_at, manifest_count, dependency_count, labels, annotation]
+      properties:
+        id:
+          type: string
+          format: uuid
+        repository_id:
+          type: string
+          format: uuid
+        commit_sha:
+          type: string
+        scanned_at:
+          type: string
+          format: date-time
+        manifest_count:
+          type: integer
+        dependency_count:
+          type: integer
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        annotation:
+          type: string
     ScanManifestListResponse:
       type: object
       required: [items]
@@ -177,10 +213,11 @@ paths:
       summary: List scans for the current tenant
       parameters:
         - in: query
-          name: repository_slug
+          name: repository_id
           required: true
           schema:
             type: string
+            format: uuid
         - in: query
           name: from
           required: true
@@ -196,21 +233,21 @@ paths:
       responses:
         "200":
           description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScanSummary"
     post:
       summary: Upload a scan snapshot
       parameters:
-        - in: header
-          name: X-Deplens-Repository-Slug
-          required: false
-          schema:
-            type: string
-          description: Required when uploading raw deplens JSON.
         - in: header
           name: X-Deplens-Repository-Name
           required: false
           schema:
             type: string
-          description: Optional when uploading raw deplens JSON; defaults to repository slug.
+          description: Required when uploading raw deplens JSON.
         - in: header
           name: X-Deplens-Repository-URL
           required: false
@@ -265,6 +302,10 @@ paths:
       responses:
         "200":
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanSummary"
   /api/v1/scans/{scan_id}/manifests:
     get:
       summary: List manifests for a scan
@@ -299,6 +340,12 @@ paths:
       responses:
         "200":
           description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RepositorySummary"
   /api/v1/tokens:
     post:
       summary: Create an API token for the active tenant
