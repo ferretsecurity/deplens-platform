@@ -9,14 +9,7 @@ import { useRouter } from "next/navigation";
 
 import { login } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
@@ -59,15 +52,9 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
   }
 
   return (
-    <Card className="border-slate-200/80 bg-white/95 shadow-xl shadow-slate-200/60 backdrop-blur">
-      <CardHeader className="space-y-3">
-        <div className="inline-flex w-fit rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-slate-600">
-          Secure scan workspace
-        </div>
-        <CardTitle className="text-3xl tracking-tight">Sign in to deplens</CardTitle>
-        <CardDescription className="text-sm leading-6 text-slate-600">
-          Explore repositories, scan history, and dependency details from a single product surface.
-        </CardDescription>
+    <Card className="w-full max-w-sm border-slate-200/80 bg-white/95 shadow-xl shadow-slate-200/60 backdrop-blur">
+      <CardHeader>
+        <CardTitle className="text-3xl tracking-tight">Sign in to Deplens Platform</CardTitle>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -79,7 +66,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input autoComplete="email" placeholder="admin@example.com" type="email" {...field} />
+                    <Input autoComplete="email" type="email" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -109,10 +96,6 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           </form>
         </Form>
       </CardContent>
-      <CardFooter className="justify-between border-t border-slate-100 pt-6 text-xs text-slate-500">
-        <span>Self-hosted session auth</span>
-        <span>Cookie-backed access</span>
-      </CardFooter>
     </Card>
   );
 }
