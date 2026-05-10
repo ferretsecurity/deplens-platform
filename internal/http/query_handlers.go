@@ -160,6 +160,11 @@ func NewQueryRouter(service QueryService) http.Handler {
 	mux.HandleFunc("PATCH /api/v1/scans/{scan_id}/metadata", func(w http.ResponseWriter, r *http.Request) {
 		token := auth.BearerToken(r.Header.Get("Authorization"))
 		if err := service.UpdateScanMetadata(r, token); err != nil {
+			var badRequest badRequestError
+			if errors.As(err, &badRequest) {
+				http.Error(w, badRequest.Error(), http.StatusBadRequest)
+				return
+			}
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}

@@ -1,6 +1,6 @@
 # deplens-platform
 
-`deplens-platform` is the self-hosted backend for `deplens` scan snapshots.
+`deplens-platform` is the self-hosted backend and customer-facing web UI for `deplens` scan snapshots.
 
 ## Local startup
 
@@ -8,6 +8,13 @@
 2. `docker compose up -d postgres`
 3. `export $(grep -v '^#' .env | xargs)`
 4. `go run ./cmd/deplens-platform`
+
+In another terminal:
+
+1. `pnpm install`
+2. `pnpm dev:web`
+
+The web app serves the authenticated product UI at `http://localhost:3000` and talks to the API on `http://localhost:8080`.
 
 ## First login
 
@@ -80,3 +87,13 @@ curl -s \
   -H "Authorization: Bearer $TOKEN" \
   "http://localhost:8080/api/v1/scans/$SCAN_ID/manifests" | jq
 ```
+
+## Compose deployment
+
+For a single-server self-hosted install:
+
+1. `cp deploy/compose/.env.example .env`
+2. Update `APP_HOST` and the bootstrap credentials in `.env`
+3. `docker compose up -d --build`
+
+That starts `caddy`, `web`, `api`, and `postgres` behind a single origin.
