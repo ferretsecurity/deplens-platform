@@ -27,7 +27,7 @@ func NewAuthRouter(service AuthService) http.Handler {
 			return
 		}
 
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusNoContent)
 	})
 	return mux
 }

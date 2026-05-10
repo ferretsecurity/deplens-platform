@@ -19,8 +19,8 @@ func TestLoginSetsSessionCookieForValidUser(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", rr.Code, http.StatusOK)
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", rr.Code, http.StatusNoContent)
 	}
 	if len(rr.Result().Cookies()) == 0 {
 		t.Fatal("expected session cookie to be set")
