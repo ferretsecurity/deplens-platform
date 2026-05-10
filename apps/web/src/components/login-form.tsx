@@ -46,6 +46,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     setError(null);
     try {
       await login(values.email, values.password);
+      console.log("Login successful");
       if (onSuccess) {
         onSuccess();
         return;

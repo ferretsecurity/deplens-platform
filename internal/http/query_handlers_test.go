@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alexedwards/scs/v2"
 	"github.com/ferretsecurity/deplens-platform/internal/auth"
 	"github.com/ferretsecurity/deplens-platform/internal/store"
 	"github.com/stretchr/testify/require"
@@ -69,6 +70,19 @@ func TestListRepositoriesReturnsRepositoryID(t *testing.T) {
 	require.Contains(t, rr.Body.String(), `"id":"repo-123"`)
 }
 
+func TestListRepositoriesAcceptsSessionAuth(t *testing.T) {
+	sessions := auth.NewSessionManager(auth.SessionConfig{})
+	handler := sessions.LoadAndSave(newTestQueryRouterWithSessions(t, sessions))
+
+	req := requestWithQuerySession(t, sessions, http.MethodGet, "/api/v1/repositories")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	require.Contains(t, rr.Body.String(), `"id":"repo-123"`)
+}
+
 func TestListScanManifestsReturnsPath(t *testing.T) {
 	handler := newTestQueryRouter(t)
 
@@ -102,7 +116,13 @@ func newTestQueryRouter(t *testing.T) http.Handler {
 
 func newTestQueryRouterWithStore(t *testing.T, reads QueryStore) http.Handler {
 	t.Helper()
-	service := NewProductionQueryService(fakeTokenLookup{}, reads)
+	service := NewProductionQueryService(fakeTokenLookup{}, reads, nil)
+	return NewQueryRouter(service)
+}
+
+func newTestQueryRouterWithSessions(t *testing.T, sessions *scs.SessionManager) http.Handler {
+	t.Helper()
+	service := NewProductionQueryService(fakeTokenLookup{}, &fakeQueryStore{}, sessions)
 	return NewQueryRouter(service)
 }
 
@@ -182,4 +202,32 @@ func (*fakeQueryStore) UpdateScanMetadata(_ context.Context, tenantID string, sc
 		return errUnauthorized
 	}
 	return nil
+}
+
+func requestWithQuerySession(t *testing.T, sessions *scs.SessionManager, method, target string) *http.Request {
+	t.Helper()
+
+	ctx, err := sessions.Load(context.Background(), "")
+	require.NoError(t, err)
+
+	sessions.Put(ctx, "user_id", "user-123")
+	sessions.Put(ctx, "memberships", []store.MembershipRecord{{
+		TenantID:   "tenant-1",
+		TenantSlug: "default",
+		Role:       "owner",
+	}})
+	sessions.Put(ctx, "active_tenant_id", "tenant-1")
+	sessions.Put(ctx, "role", "owner")
+
+	token, expiry, err := sessions.Commit(ctx)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(method, target, nil)
+	req.AddCookie(&http.Cookie{
+		Name:    "deplens_session",
+		Value:   token,
+		Expires: expiry,
+		Path:    "/",
+	})
+	return req
 }

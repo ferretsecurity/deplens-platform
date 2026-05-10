@@ -53,7 +53,7 @@ func New(cfg config.Config) (*App, error) {
 	tokenRouter := httpapi.NewTokenRouter(sessionManager, httpapi.NewProductionTokenService(persistence))
 	apiRouter := httpapi.NewServer(
 		uploadService,
-		httpapi.NewProductionQueryService(persistence, store.ScanStore{DB: db}),
+		httpapi.NewProductionQueryService(persistence, store.ScanStore{DB: db}, sessionManager),
 	)
 	handler := sessionManager.LoadAndSave(routeAuthAndAPI(authRouter, tokenRouter, apiRouter))
 

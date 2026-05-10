@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/alexedwards/scs/v2"
 	"github.com/ferretsecurity/deplens-platform/internal/auth"
 	"github.com/ferretsecurity/deplens-platform/internal/store"
 	"github.com/google/uuid"
@@ -31,6 +32,7 @@ type QueryStore interface {
 type ProductionQueryService struct {
 	Lookup TokenLookup
 	Reads  QueryStore
+	Sessions *scs.SessionManager
 }
 
 type badRequestError struct {
@@ -49,24 +51,25 @@ func newBadRequestError(err error) error {
 	return badRequestError{err: err}
 }
 
-func NewProductionQueryService(lookup TokenLookup, reads QueryStore) ProductionQueryService {
+func NewProductionQueryService(lookup TokenLookup, reads QueryStore, sessions *scs.SessionManager) ProductionQueryService {
 	return ProductionQueryService{
 		Lookup: lookup,
 		Reads:  reads,
+		Sessions: sessions,
 	}
 }
 
 func (s ProductionQueryService) ListRepositories(r *http.Request, token string) (any, error) {
-	tenantID, scopes, err := s.Lookup.FindToken(r.Context(), auth.HashToken(token))
-	if err != nil || !hasScope(scopes, "scan:read") {
+	tenantID, _, err := s.authorizeRead(r, token)
+	if err != nil {
 		return nil, errUnauthorized
 	}
 	return s.Reads.ListRepositories(r.Context(), tenantID)
 }
 
 func (s ProductionQueryService) ListScans(r *http.Request, token string) (any, error) {
-	tenantID, scopes, err := s.Lookup.FindToken(r.Context(), auth.HashToken(token))
-	if err != nil || !hasScope(scopes, "scan:read") {
+	tenantID, _, err := s.authorizeRead(r, token)
+	if err != nil {
 		return nil, errUnauthorized
 	}
 
@@ -93,16 +96,16 @@ func (s ProductionQueryService) ListScans(r *http.Request, token string) (any, e
 }
 
 func (s ProductionQueryService) GetScan(r *http.Request, token string) (any, error) {
-	tenantID, scopes, err := s.Lookup.FindToken(r.Context(), auth.HashToken(token))
-	if err != nil || !hasScope(scopes, "scan:read") {
+	tenantID, _, err := s.authorizeRead(r, token)
+	if err != nil {
 		return nil, errUnauthorized
 	}
 	return s.Reads.GetScan(r.Context(), tenantID, r.PathValue("scan_id"))
 }
 
 func (s ProductionQueryService) ListScanManifests(r *http.Request, token string) (any, error) {
-	tenantID, scopes, err := s.Lookup.FindToken(r.Context(), auth.HashToken(token))
-	if err != nil || !hasScope(scopes, "scan:read") {
+	tenantID, _, err := s.authorizeRead(r, token)
+	if err != nil {
 		return nil, errUnauthorized
 	}
 
@@ -114,8 +117,11 @@ func (s ProductionQueryService) ListScanManifests(r *http.Request, token string)
 }
 
 func (s ProductionQueryService) UpdateScanMetadata(r *http.Request, token string) error {
-	tenantID, scopes, err := s.Lookup.FindToken(r.Context(), auth.HashToken(token))
-	if err != nil || !hasScope(scopes, "scan:metadata:write") {
+	tenantID, role, scopes, err := s.authorizeWrite(r, token)
+	if err != nil {
+		return errUnauthorized
+	}
+	if role == "" && !hasScope(scopes, "scan:metadata:write") {
 		return errUnauthorized
 	}
 
@@ -128,6 +134,33 @@ func (s ProductionQueryService) UpdateScanMetadata(r *http.Request, token string
 	}
 
 	return s.Reads.UpdateScanMetadata(r.Context(), tenantID, r.PathValue("scan_id"), payload.Labels, payload.Annotation)
+}
+
+func (s ProductionQueryService) authorizeRead(r *http.Request, token string) (tenantID string, role string, err error) {
+	tenantID, role, _, err = s.authorizeWrite(r, token)
+	return tenantID, role, err
+}
+
+func (s ProductionQueryService) authorizeWrite(r *http.Request, token string) (tenantID string, role string, scopes []string, err error) {
+	if token != "" {
+		tenantID, scopes, err = s.Lookup.FindToken(r.Context(), auth.HashToken(token))
+		if err != nil {
+			return "", "", nil, errUnauthorized
+		}
+		return tenantID, "", scopes, nil
+	}
+	if s.Sessions == nil {
+		return "", "", nil, errUnauthorized
+	}
+	if s.Sessions.GetString(r.Context(), "user_id") == "" {
+		return "", "", nil, errUnauthorized
+	}
+	tenantID = s.Sessions.GetString(r.Context(), "active_tenant_id")
+	if tenantID == "" {
+		return "", "", nil, errUnauthorized
+	}
+	role = s.Sessions.GetString(r.Context(), "role")
+	return tenantID, role, nil, nil
 }
 
 func NewServer(upload UploadService, query QueryService) http.Handler {
