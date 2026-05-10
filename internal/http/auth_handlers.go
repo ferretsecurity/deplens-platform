@@ -15,6 +15,7 @@ type AuthService interface {
 
 type CurrentUserResponse struct {
 	UserID         string                   `json:"user_id"`
+	DisplayName    string                   `json:"display_name,omitempty"`
 	Memberships    []store.MembershipRecord `json:"memberships"`
 	ActiveTenantID string                   `json:"active_tenant_id,omitempty"`
 	Role           string                   `json:"role,omitempty"`
@@ -72,6 +73,7 @@ func (s ProductionAuthService) CurrentUser(r *http.Request) (any, error) {
 	memberships, _ := s.Sessions.Get(r.Context(), "memberships").([]store.MembershipRecord)
 	response := CurrentUserResponse{
 		UserID:      userID,
+		DisplayName: s.Sessions.GetString(r.Context(), "display_name"),
 		Memberships: memberships,
 		Role:        s.Sessions.GetString(r.Context(), "role"),
 	}

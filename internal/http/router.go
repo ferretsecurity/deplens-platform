@@ -49,7 +49,7 @@ func (s ProductionUploadService) Upload(r *http.Request, token string, input sca
 }
 
 type LocalIdentityStore interface {
-	FindLocalIdentityByEmail(ctx context.Context, email string) (userID string, passwordHash string, err error)
+	FindLocalIdentityByEmail(ctx context.Context, email string) (userID string, displayName string, passwordHash string, err error)
 	ListMemberships(ctx context.Context, userID string) ([]store.MembershipRecord, error)
 }
 
@@ -59,7 +59,7 @@ type ProductionAuthService struct {
 }
 
 func (s ProductionAuthService) Login(r *http.Request, email string, password string) (string, error) {
-	userID, passwordHash, err := s.Store.FindLocalIdentityByEmail(r.Context(), email)
+	userID, displayName, passwordHash, err := s.Store.FindLocalIdentityByEmail(r.Context(), email)
 	if err != nil {
 		return "", errUnauthorized
 	}
@@ -77,6 +77,7 @@ func (s ProductionAuthService) Login(r *http.Request, email string, password str
 			return "", err
 		}
 		s.Sessions.Put(r.Context(), "user_id", userID)
+		s.Sessions.Put(r.Context(), "display_name", displayName)
 		s.Sessions.Put(r.Context(), "memberships", memberships)
 		if len(memberships) == 1 {
 			s.Sessions.Put(r.Context(), "active_tenant_id", memberships[0].TenantID)

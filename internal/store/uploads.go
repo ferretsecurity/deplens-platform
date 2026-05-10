@@ -28,21 +28,22 @@ func (s Store) FindToken(ctx context.Context, tokenHash string) (string, []strin
 	return record.TenantID, record.Scopes, nil
 }
 
-func (s Store) FindLocalIdentityByEmail(ctx context.Context, email string) (string, string, error) {
+func (s Store) FindLocalIdentityByEmail(ctx context.Context, email string) (string, string, string, error) {
 	var userID string
+	var displayName string
 	var passwordHash string
 	err := s.DB.QueryRow(ctx, `
-		select u.id, ai.password_hash
+		select u.id, u.display_name, ai.password_hash
 		from auth_identities ai
 		join auth_providers ap on ap.id = ai.provider_id
 		join users u on u.id = ai.user_id
 		where ap.slug = 'local' and ai.email = $1
 		limit 1
-	`, email).Scan(&userID, &passwordHash)
+	`, email).Scan(&userID, &displayName, &passwordHash)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
-	return userID, passwordHash, nil
+	return userID, displayName, passwordHash, nil
 }
 
 func (s Store) ListMemberships(ctx context.Context, userID string) ([]MembershipRecord, error) {

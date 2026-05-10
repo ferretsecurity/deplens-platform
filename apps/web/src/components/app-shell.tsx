@@ -25,7 +25,6 @@ import {
   SheetTitle,
   SheetTrigger
 } from "@/components/ui/sheet";
-import { Separator } from "@/components/ui/separator";
 
 type AppShellProps = {
   user: CurrentUser;
@@ -45,7 +44,7 @@ export function AppShell({ user, children }: AppShellProps) {
     window.location.href = "/login";
   }
 
-  const primaryMembership = user.memberships[0];
+  const displayName = user.display_name || user.user_id;
 
   const nav = (
     <nav className="flex flex-col gap-1">
@@ -79,20 +78,10 @@ export function AppShell({ user, children }: AppShellProps) {
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
                 <Shield className="h-3.5 w-3.5" />
-                deplens
+                deplens platform
               </div>
-              <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-900">
-                Dependency intelligence for shipped software
-              </h1>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Browse repositories, inspect scans, and trace manifests in one authenticated workspace.
-              </p>
             </div>
             {nav}
-            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-600">
-              <div className="font-medium text-slate-900">{primaryMembership?.tenant_slug ?? "Active tenant"}</div>
-              <div className="mt-1">Role: {primaryMembership?.role ?? user.role ?? "viewer"}</div>
-            </div>
           </div>
         </aside>
 
@@ -108,34 +97,23 @@ export function AppShell({ user, children }: AppShellProps) {
                   </SheetTrigger>
                   <SheetContent side="left" className="w-[320px] bg-white">
                     <SheetHeader className="text-left">
-                      <SheetTitle>deplens</SheetTitle>
+                      <SheetTitle>deplens platform</SheetTitle>
                       <SheetDescription>
                         Dependency intelligence for self-hosted scans.
                       </SheetDescription>
                     </SheetHeader>
                     <div className="mt-6">{nav}</div>
-                    <Separator className="my-6" />
-                    <div className="text-sm text-slate-600">
-                      <div className="font-medium text-slate-900">{primaryMembership?.tenant_slug ?? "Active tenant"}</div>
-                      <div className="mt-1">Role: {primaryMembership?.role ?? user.role ?? "viewer"}</div>
-                    </div>
                   </SheetContent>
                 </Sheet>
                 <div>
-                  <div className="text-xs uppercase tracking-[0.18em] text-slate-500">deplens</div>
-                  <div className="text-base font-semibold text-slate-900">Platform</div>
+                  <div className="text-xs uppercase tracking-[0.18em] text-slate-500">deplens platform</div>
                 </div>
-              </div>
-
-              <div className="hidden lg:block">
-                <div className="text-sm text-slate-500">Logged in as</div>
-                <div className="font-medium text-slate-900">{user.user_id}</div>
               </div>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="ml-auto gap-2">
-                    <span className="max-w-[180px] truncate">{user.user_id}</span>
+                    <span className="max-w-[180px] truncate">{displayName}</span>
                     <ChevronDown className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
