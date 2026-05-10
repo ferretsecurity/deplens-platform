@@ -1,6 +1,8 @@
 services:
   postgres:
     image: postgres:17
+    ports:
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_DB: deplens
       POSTGRES_PASSWORD: postgres
@@ -23,7 +25,7 @@ services:
       BLOB_FILESYSTEM_ROOT: /var/lib/deplens/blobs
       DEPLOYMENT_MODE: self-hosted
       HTTP_ADDRESS: :8080
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: ${API_DATABASE_URL:-postgres://postgres:postgres@postgres:5432/deplens?sslmode=disable}
       BOOTSTRAP_OWNER_EMAIL: ${BOOTSTRAP_OWNER_EMAIL}
       BOOTSTRAP_OWNER_PASSWORD: ${BOOTSTRAP_OWNER_PASSWORD}
       BOOTSTRAP_API_TOKEN: ${BOOTSTRAP_API_TOKEN}

@@ -97,3 +97,5 @@ For a single-server self-hosted install:
 3. `docker compose up -d --build`
 
 That starts `caddy`, `web`, `api`, and `postgres` behind a single origin.
+
+The Compose stack uses `API_DATABASE_URL`, not the local development `DATABASE_URL`. If you reuse a local `.env` with `DATABASE_URL=...@localhost...`, the `api` container will fail to reach Postgres and requests proxied through Caddy will return `502`.
