@@ -22,5 +22,6 @@ Open `https://$APP_HOST/login` and sign in with the bootstrap owner credentials 
 ## Notes
 
 - `api` reads migrations from the bundled `/src/db/migrations` path at startup.
+- Compose uses `API_DATABASE_URL` for the backend container. Do not reuse a local-only `DATABASE_URL=...@localhost...` value here, because `localhost` inside the container is not the `postgres` service.
 - `caddy` needs `APP_HOST` in its environment so the Caddyfile can render the site address.
 - `web` talks to `api` over the private Compose network and serves the browser UI from a single origin.
