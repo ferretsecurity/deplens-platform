@@ -31,7 +31,6 @@ services:
       BOOTSTRAP_API_TOKEN: ${BOOTSTRAP_API_TOKEN}
       MIGRATE_ON_START: "true"
       SESSION_COOKIE_SECURE: "true"
-      SESSION_COOKIE_SECRET: ${SESSION_COOKIE_SECRET}
       TRUST_PROXY: "true"
     depends_on:
       postgres:

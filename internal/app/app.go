@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/alexedwards/scs/pgxstore"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ferretsecurity/deplens-platform/internal/auth"
@@ -45,6 +47,10 @@ func New(cfg config.Config) (*App, error) {
 	})
 	sessionManager := auth.NewSessionManager(auth.SessionConfig{
 		SecureCookie: cfg.SessionCookieSecure,
+		Store: pgxstore.NewWithConfig(db, pgxstore.Config{
+			TableName:       "http_sessions",
+			CleanUpInterval: 5 * time.Minute,
+		}),
 	})
 	authRouter := httpapi.NewAuthRouter(httpapi.ProductionAuthService{
 		Sessions: sessionManager,

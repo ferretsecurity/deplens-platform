@@ -20,19 +20,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	application, err := app.New(cfg)
-	if err != nil {
-		logger.Error("build app", "error", err)
-		os.Exit(1)
-	}
-	defer application.DB.Close()
-
 	if cfg.MigrateOnStart {
 		if err := store.Migrate(cfg.DatabaseURL); err != nil {
 			logger.Error("run migrations", "error", err)
 			os.Exit(1)
 		}
 	}
+
+	application, err := app.New(cfg)
+	if err != nil {
+		logger.Error("build app", "error", err)
+		os.Exit(1)
+	}
+	defer application.DB.Close()
 
 	bootstrapInput := store.BootstrapInput{
 		OwnerEmail:     cfg.BootstrapOwnerEmail,
