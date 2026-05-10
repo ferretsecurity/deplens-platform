@@ -44,7 +44,7 @@ func New(cfg config.Config) (*App, error) {
 		Store: persistence,
 	})
 	sessionManager := auth.NewSessionManager(auth.SessionConfig{
-		SecureCookie: cfg.Mode != "self-hosted",
+		SecureCookie: cfg.SessionCookieSecure,
 	})
 	authRouter := httpapi.NewAuthRouter(httpapi.ProductionAuthService{
 		Sessions: sessionManager,
@@ -53,7 +53,7 @@ func New(cfg config.Config) (*App, error) {
 	tokenRouter := httpapi.NewTokenRouter(sessionManager, httpapi.NewProductionTokenService(persistence))
 	apiRouter := httpapi.NewServer(
 		uploadService,
-		httpapi.NewProductionQueryService(persistence, store.ScanStore{DB: db}),
+		httpapi.NewProductionQueryService(persistence, store.ScanStore{DB: db}, sessionManager),
 	)
 	handler := sessionManager.LoadAndSave(routeAuthAndAPI(authRouter, tokenRouter, apiRouter))
 
@@ -67,7 +67,7 @@ func New(cfg config.Config) (*App, error) {
 
 func routeAuthAndAPI(authRouter http.Handler, tokenRouter http.Handler, apiRouter http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/auth/login" {
+		if r.URL.Path == "/auth/login" || r.URL.Path == "/auth/me" || r.URL.Path == "/auth/logout" {
 			authRouter.ServeHTTP(w, r)
 			return
 		}

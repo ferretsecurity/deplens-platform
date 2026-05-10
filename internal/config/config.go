@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"os"
+	"strconv"
 )
 
 type Config struct {
@@ -15,6 +16,10 @@ type Config struct {
 	BootstrapOwnerPassword string
 	BootstrapAPIToken      string
 	SessionCookieSecret    string
+	AppBaseURL             string
+	SessionCookieSecure    bool
+	TrustProxy             bool
+	MigrateOnStart         bool
 }
 
 func Load() (Config, error) {
@@ -28,6 +33,10 @@ func Load() (Config, error) {
 		BootstrapOwnerPassword: os.Getenv("BOOTSTRAP_OWNER_PASSWORD"),
 		BootstrapAPIToken:      os.Getenv("BOOTSTRAP_API_TOKEN"),
 		SessionCookieSecret:    os.Getenv("SESSION_COOKIE_SECRET"),
+		AppBaseURL:             getEnv("APP_BASE_URL", "http://localhost:8080"),
+		SessionCookieSecure:    getEnvBool("SESSION_COOKIE_SECURE", getEnv("DEPLOYMENT_MODE", "self-hosted") != "self-hosted"),
+		TrustProxy:             getEnvBool("TRUST_PROXY", getEnv("DEPLOYMENT_MODE", "self-hosted") != "self-hosted"),
+		MigrateOnStart:         getEnvBool("MIGRATE_ON_START", true),
 	}
 
 	if cfg.DatabaseURL == "" {
@@ -57,4 +66,16 @@ func getEnv(key string, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func getEnvBool(key string, fallback bool) bool {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return fallback
+	}
+	return parsed
 }

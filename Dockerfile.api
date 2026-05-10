@@ -1,0 +1,14 @@
+FROM golang:1.25 AS build
+WORKDIR /src
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/deplens-platform ./cmd/deplens-platform
+
+FROM gcr.io/distroless/base-debian12
+WORKDIR /src
+COPY --from=build /out/deplens-platform /src/deplens-platform
+COPY --from=build /src/db/migrations /src/db/migrations
+ENTRYPOINT ["/src/deplens-platform"]

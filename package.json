@@ -1,0 +1,12 @@
+{
+  "name": "deplens-platform",
+  "private": true,
+  "packageManager": "pnpm@10.10.0",
+  "scripts": {
+    "dev:web": "pnpm --dir apps/web dev",
+    "build:web": "pnpm --dir apps/web build",
+    "lint:web": "pnpm --dir apps/web lint",
+    "test:web": "pnpm --dir apps/web test",
+    "test:web:e2e": "pnpm --dir apps/web exec playwright test"
+  }
+}
