@@ -10,6 +10,7 @@ import (
 
 type SessionConfig struct {
 	SecureCookie bool
+	Store        scs.Store
 }
 
 func NewSessionManager(cfg SessionConfig) *scs.SessionManager {
@@ -20,5 +21,9 @@ func NewSessionManager(cfg SessionConfig) *scs.SessionManager {
 	manager.Cookie.HttpOnly = true
 	manager.Cookie.SameSite = http.SameSiteLaxMode
 	manager.Cookie.Secure = cfg.SecureCookie
+	manager.HashTokenInStore = true
+	if cfg.Store != nil {
+		manager.Store = cfg.Store
+	}
 	return manager
 }

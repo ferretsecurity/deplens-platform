@@ -8,7 +8,6 @@ func TestLoadUsesDefaultHTTPAddressTenantModeAndFrontendFlags(t *testing.T) {
 	t.Setenv("BLOB_FILESYSTEM_ROOT", "./var/blobs")
 	t.Setenv("BOOTSTRAP_OWNER_EMAIL", "admin@example.com")
 	t.Setenv("BOOTSTRAP_OWNER_PASSWORD", "change-me-now")
-	t.Setenv("SESSION_COOKIE_SECRET", "replace-me")
 
 	cfg, err := Load()
 	if err != nil {
@@ -34,7 +33,6 @@ func TestLoadHonorsCookieAndProxyFlags(t *testing.T) {
 	t.Setenv("BLOB_FILESYSTEM_ROOT", "./var/blobs")
 	t.Setenv("BOOTSTRAP_OWNER_EMAIL", "admin@example.com")
 	t.Setenv("BOOTSTRAP_OWNER_PASSWORD", "change-me-now")
-	t.Setenv("SESSION_COOKIE_SECRET", "replace-me")
 	t.Setenv("SESSION_COOKIE_SECURE", "true")
 	t.Setenv("TRUST_PROXY", "true")
 	t.Setenv("MIGRATE_ON_START", "false")
@@ -63,7 +61,6 @@ func TestLoadFailsWithoutDatabaseURL(t *testing.T) {
 	t.Setenv("BLOB_FILESYSTEM_ROOT", "./var/blobs")
 	t.Setenv("BOOTSTRAP_OWNER_EMAIL", "admin@example.com")
 	t.Setenv("BOOTSTRAP_OWNER_PASSWORD", "change-me-now")
-	t.Setenv("SESSION_COOKIE_SECRET", "replace-me")
 
 	_, err := Load()
 	if err == nil {

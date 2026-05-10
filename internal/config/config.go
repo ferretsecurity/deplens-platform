@@ -15,7 +15,6 @@ type Config struct {
 	BootstrapOwnerEmail    string
 	BootstrapOwnerPassword string
 	BootstrapAPIToken      string
-	SessionCookieSecret    string
 	AppBaseURL             string
 	SessionCookieSecure    bool
 	TrustProxy             bool
@@ -32,7 +31,6 @@ func Load() (Config, error) {
 		BootstrapOwnerEmail:    os.Getenv("BOOTSTRAP_OWNER_EMAIL"),
 		BootstrapOwnerPassword: os.Getenv("BOOTSTRAP_OWNER_PASSWORD"),
 		BootstrapAPIToken:      os.Getenv("BOOTSTRAP_API_TOKEN"),
-		SessionCookieSecret:    os.Getenv("SESSION_COOKIE_SECRET"),
 		AppBaseURL:             getEnv("APP_BASE_URL", "http://localhost:8080"),
 		SessionCookieSecure:    getEnvBool("SESSION_COOKIE_SECURE", getEnv("DEPLOYMENT_MODE", "self-hosted") != "self-hosted"),
 		TrustProxy:             getEnvBool("TRUST_PROXY", getEnv("DEPLOYMENT_MODE", "self-hosted") != "self-hosted"),
@@ -54,10 +52,6 @@ func Load() (Config, error) {
 	if cfg.BootstrapOwnerPassword == "" {
 		return Config{}, errors.New("BOOTSTRAP_OWNER_PASSWORD is required")
 	}
-	if cfg.SessionCookieSecret == "" {
-		return Config{}, errors.New("SESSION_COOKIE_SECRET is required")
-	}
-
 	return cfg, nil
 }
 
