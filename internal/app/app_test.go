@@ -80,6 +80,13 @@ func TestSessionSurvivesAppRestart(t *testing.T) {
 	if len(cookies) == 0 {
 		t.Fatal("login did not set a session cookie")
 	}
+	var storedToken string
+	if err := db.QueryRow(ctx, "select token from http_sessions").Scan(&storedToken); err != nil {
+		t.Fatalf("query stored session token error = %v", err)
+	}
+	if storedToken == cookies[0].Value {
+		t.Fatal("stored session token matches browser cookie, want hashed token")
+	}
 	firstApp.DB.Close()
 
 	secondApp, err := New(cfg)
