@@ -18,6 +18,12 @@ describe("api helpers", () => {
     await expect(serverApiFetch<void>("/test")).resolves.toBeUndefined();
   });
 
+  it("returns undefined for successful responses with an empty body", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 200 })));
+
+    await expect(clientApiFetch<void>("/test")).resolves.toBeUndefined();
+  });
+
   it("throws ApiError for failed responses", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("nope", { status: 401 })));
 
