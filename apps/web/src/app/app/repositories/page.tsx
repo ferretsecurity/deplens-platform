@@ -34,7 +34,16 @@ export default async function RepositoriesPage() {
                 {repositories.map((repository) => (
                   <TableRow key={repository.id}>
                     <TableCell className="font-medium">{repository.name}</TableCell>
-                    <TableCell className="max-w-[380px] truncate text-slate-600">{repository.url}</TableCell>
+                    <TableCell className="max-w-[380px] truncate">
+                      <a
+                        className="text-slate-600 underline-offset-4 hover:text-slate-900 hover:underline"
+                        href={repository.url}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        {repository.url}
+                      </a>
+                    </TableCell>
                     <TableCell>{repository.default_branch}</TableCell>
                     <TableCell className="text-right">
                       <Link

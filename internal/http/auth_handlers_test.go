@@ -50,6 +50,9 @@ func TestMeReturnsCurrentUserFromSession(t *testing.T) {
 	if got.UserID != "user-123" {
 		t.Fatalf("UserID = %q, want %q", got.UserID, "user-123")
 	}
+	if got.DisplayName != "Test User" {
+		t.Fatalf("DisplayName = %q, want %q", got.DisplayName, "Test User")
+	}
 	if len(got.Memberships) != 1 || got.Memberships[0].TenantID != "tenant-123" {
 		t.Fatalf("Memberships = %+v, want tenant-123", got.Memberships)
 	}
@@ -98,6 +101,7 @@ func (f fakeAuthService) Login(r *http.Request, email string, password string) (
 	}
 	if f.sessions != nil {
 		f.sessions.Put(r.Context(), "user_id", "user-123")
+		f.sessions.Put(r.Context(), "display_name", "Test User")
 		f.sessions.Put(r.Context(), "memberships", []store.MembershipRecord{{
 			TenantID:   "tenant-123",
 			TenantSlug: "default",
@@ -126,6 +130,7 @@ func requestWithSession(t *testing.T, sessions *scs.SessionManager, method, targ
 	}
 
 	sessions.Put(ctx, "user_id", "user-123")
+	sessions.Put(ctx, "display_name", "Test User")
 	sessions.Put(ctx, "memberships", []store.MembershipRecord{{
 		TenantID:   "tenant-123",
 		TenantSlug: "default",

@@ -1,5 +1,6 @@
 export type CurrentUser = {
   user_id: string;
+  display_name?: string;
   memberships: MembershipRecord[];
   active_tenant_id?: string;
   role?: string;
