@@ -197,21 +197,71 @@ func insertManifestDependencies(ctx context.Context, tx pgx.Tx, scanManifestID s
 	return nil
 }
 
-func (s Store) CreateAPIToken(ctx context.Context, tenantID string, label string, scopes []string) (string, error) {
+func (s Store) CreateAPIToken(ctx context.Context, tenantID string, label string, scopes []string) (string, APITokenMetadata, error) {
 	token, err := randomToken()
 	if err != nil {
-		return "", err
+		return "", APITokenMetadata{}, err
 	}
 
-	_, err = s.DB.Exec(ctx, `
+	var item APITokenMetadata
+	err = s.DB.QueryRow(ctx, `
 		insert into api_tokens (tenant_id, label, token_hash, scopes)
 		values ($1, $2, $3, $4)
-	`, tenantID, label, hashToken(token), scopes)
+		returning id, label, scopes, created_at
+	`, tenantID, label, hashToken(token), scopes).Scan(&item.ID, &item.Label, &item.Scopes, &item.CreatedAt)
 	if err != nil {
-		return "", err
+		return "", APITokenMetadata{}, err
 	}
 
-	return token, nil
+	return token, item, nil
+}
+
+func (s Store) ListAPITokens(ctx context.Context, tenantID string) ([]APITokenMetadata, error) {
+	rows, err := s.DB.Query(ctx, `
+		select id, label, scopes, created_at
+		from api_tokens
+		where tenant_id = $1
+		order by created_at desc, label asc
+	`, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]APITokenMetadata, 0)
+	for rows.Next() {
+		var item APITokenMetadata
+		if err := rows.Scan(&item.ID, &item.Label, &item.Scopes, &item.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (s Store) UpdateAPIToken(ctx context.Context, tenantID string, tokenID string, label string, scopes []string) (APITokenMetadata, error) {
+	var item APITokenMetadata
+	err := s.DB.QueryRow(ctx, `
+		update api_tokens
+		set label = $3, scopes = $4
+		where tenant_id = $1 and id = $2
+		returning id, label, scopes, created_at
+	`, tenantID, tokenID, label, scopes).Scan(&item.ID, &item.Label, &item.Scopes, &item.CreatedAt)
+	return item, err
+}
+
+func (s Store) DeleteAPIToken(ctx context.Context, tenantID string, tokenID string) error {
+	tag, err := s.DB.Exec(ctx, `
+		delete from api_tokens
+		where tenant_id = $1 and id = $2
+	`, tenantID, tokenID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
 }
 
 func randomToken() (string, error) {

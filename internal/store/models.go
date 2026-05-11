@@ -7,6 +7,13 @@ type TokenRecord struct {
 	Scopes   []string
 }
 
+type APITokenMetadata struct {
+	ID        string    `json:"id"`
+	Label     string    `json:"label"`
+	Scopes    []string  `json:"scopes"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type MembershipRecord struct {
 	TenantID   string `json:"tenant_id"`
 	TenantSlug string `json:"tenant_slug"`
