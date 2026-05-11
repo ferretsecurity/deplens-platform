@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/alexedwards/scs/pgxstore"
@@ -77,7 +78,7 @@ func routeAuthAndAPI(authRouter http.Handler, tokenRouter http.Handler, apiRoute
 			authRouter.ServeHTTP(w, r)
 			return
 		}
-		if r.URL.Path == "/api/v1/tokens" {
+		if r.URL.Path == "/api/v1/tokens" || strings.HasPrefix(r.URL.Path, "/api/v1/tokens/") {
 			tokenRouter.ServeHTTP(w, r)
 			return
 		}

@@ -106,6 +106,27 @@ func TestSessionSurvivesAppRestart(t *testing.T) {
 	}
 }
 
+func TestRouteAuthAndAPIForwardsTokenItemPathsToTokenRouter(t *testing.T) {
+	handler := routeAuthAndAPI(
+		http.NotFoundHandler(),
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusAccepted)
+		}),
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.NotFound(w, r)
+		}),
+	)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/tokens/token-1", bytes.NewBufferString(`{"label":"scanner","scopes":["scan:read"]}`))
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want %d", rr.Code, http.StatusAccepted)
+	}
+}
+
 func openTestDatabase(t *testing.T) (*pgxpool.Pool, string) {
 	t.Helper()
 

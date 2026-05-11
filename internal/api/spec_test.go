@@ -23,6 +23,7 @@ func TestOpenAPIDefinesScanUploadAndHistoryPaths(t *testing.T) {
 		"/api/v1/scans/{scan_id}/metadata:",
 		"/api/v1/repositories:",
 		"/api/v1/tokens:",
+		"/api/v1/tokens/{token_id}:",
 	} {
 		if !strings.Contains(spec, want) {
 			t.Fatalf("OpenAPI spec missing path %q", want)
@@ -31,6 +32,15 @@ func TestOpenAPIDefinesScanUploadAndHistoryPaths(t *testing.T) {
 	if !strings.Contains(spec, "ScanUploadRequest") {
 		t.Fatal("OpenAPI spec missing ScanUploadRequest schema")
 	}
+
+	var doc struct {
+		Paths map[string]map[string]any `yaml:"paths"`
+	}
+	require.NoError(t, yaml.Unmarshal(specBytes, &doc))
+	require.Contains(t, doc.Paths["/api/v1/tokens"], "get")
+	require.Contains(t, doc.Paths["/api/v1/tokens"], "post")
+	require.Contains(t, doc.Paths["/api/v1/tokens/{token_id}"], "patch")
+	require.Contains(t, doc.Paths["/api/v1/tokens/{token_id}"], "delete")
 }
 
 func TestOpenAPISpecDoesNotExposeProjects(t *testing.T) {

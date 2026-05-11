@@ -49,3 +49,14 @@ export type ScanManifestItem = {
   warnings: string[];
   dependencies: ManifestDependencyItem[];
 };
+
+export type APITokenMetadata = {
+  id: string;
+  label: string;
+  scopes: string[];
+  created_at: string;
+};
+
+export type CreatedAPIToken = APITokenMetadata & {
+  token: string;
+};
