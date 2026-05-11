@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 
 import { serverApiFetch } from "./api";
 import { env } from "./env";
-import type { RepositoryListItem, ScanListItem, ScanManifestItem } from "./types";
+import type { APITokenMetadata, RepositoryListItem, ScanListItem, ScanManifestItem } from "./types";
 
 function cookieHeaders() {
   const cookieHeader = cookies().toString();
@@ -39,4 +39,10 @@ export async function listScanManifestsServer(scanId: string) {
       headers: cookieHeaders()
     }
   );
+}
+
+export async function listAPITokensServer() {
+  return serverApiFetch<APITokenMetadata[]>(`${env.API_INTERNAL_BASE_URL}/api/v1/tokens`, {
+    headers: cookieHeaders()
+  });
 }
