@@ -171,6 +171,15 @@ func insertScanManifests(ctx context.Context, tx pgx.Tx, scanID string, reposito
 		if err := insertManifestDependencies(ctx, tx, scanManifestID, manifest.Dependencies); err != nil {
 			return err
 		}
+
+		_, err = tx.Exec(ctx, `
+			delete from scan_manifests
+			where manifest_id = $1
+			  and id <> $2
+		`, manifestID, scanManifestID)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

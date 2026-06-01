@@ -43,6 +43,111 @@ func TestCreateScanPersistsManifestsAndDependencies(t *testing.T) {
 	}
 }
 
+func TestCreateScanRemovesPreviousScanManifestForSameManifestPath(t *testing.T) {
+	ctx := context.Background()
+	db, databaseURL := openTestDatabase(t)
+	require.NoError(t, Migrate(databaseURL))
+
+	store := Store{DB: db}
+	tenantID := mustCreateTenant(t, ctx, db)
+	hasDependencies := true
+
+	_, err := store.CreateScan(ctx, UploadScanParams{
+		TenantID:            tenantID,
+		RepositoryName:      "Repo",
+		URL:                 "https://example.com/repo.git",
+		DefaultBranch:       "main",
+		ArtifactKey:         "artifact-1",
+		ArtifactSHA256:      "sha-1",
+		SchemaVersion:       "v1alpha1",
+		RootPath:            ".",
+		CommitSHA:           "commit-1",
+		SourceRef:           "refs/heads/main",
+		ScannedAt:           time.Date(2026, 5, 8, 10, 0, 0, 0, time.UTC),
+		ManifestCount:       1,
+		WithDependencies:    1,
+		WithoutDependencies: 0,
+		UnknownDependencies: 0,
+		DependencyCount:     1,
+		Labels:              map[string]string{},
+		Manifests: []UploadManifestParams{
+			{
+				Position:        0,
+				Type:            "npm-package-lock",
+				Path:            "package-lock.json",
+				HasDependencies: &hasDependencies,
+				Dependencies: []UploadDependencyParams{
+					{Position: 0, Raw: "lodash@4.17.21", Name: "lodash", Version: "4.17.21"},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	secondScanID, err := store.CreateScan(ctx, UploadScanParams{
+		TenantID:            tenantID,
+		RepositoryName:      "Repo",
+		URL:                 "https://example.com/repo.git",
+		DefaultBranch:       "main",
+		ArtifactKey:         "artifact-2",
+		ArtifactSHA256:      "sha-2",
+		SchemaVersion:       "v1alpha1",
+		RootPath:            ".",
+		CommitSHA:           "commit-2",
+		SourceRef:           "refs/heads/main",
+		ScannedAt:           time.Date(2026, 5, 9, 10, 0, 0, 0, time.UTC),
+		ManifestCount:       1,
+		WithDependencies:    1,
+		WithoutDependencies: 0,
+		UnknownDependencies: 0,
+		DependencyCount:     1,
+		Labels:              map[string]string{},
+		Manifests: []UploadManifestParams{
+			{
+				Position:        0,
+				Type:            "npm-package-lock",
+				Path:            "package-lock.json",
+				HasDependencies: &hasDependencies,
+				Dependencies: []UploadDependencyParams{
+					{Position: 0, Raw: "react@19.1.0", Name: "react", Version: "19.1.0"},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	var scanManifestCount int
+	err = db.QueryRow(ctx, `
+		select count(*)
+		from scan_manifests sm
+		join manifests m on m.id = sm.manifest_id
+		where m.repository_id = (
+			select repository_id
+			from scans
+			where id = $1
+		)
+		  and m.path = 'package-lock.json'
+	`, secondScanID).Scan(&scanManifestCount)
+	require.NoError(t, err)
+	require.Equal(t, 1, scanManifestCount)
+
+	var rawDependencies []string
+	err = db.QueryRow(ctx, `
+		select coalesce(array_agg(d.raw order by d.position), '{}'::text[])
+		from manifest_dependencies d
+		join scan_manifests sm on sm.id = d.scan_manifest_id
+		join manifests m on m.id = sm.manifest_id
+		where m.repository_id = (
+			select repository_id
+			from scans
+			where id = $1
+		)
+		  and m.path = 'package-lock.json'
+	`, secondScanID).Scan(&rawDependencies)
+	require.NoError(t, err)
+	require.Equal(t, []string{"react@19.1.0"}, rawDependencies)
+}
+
 func TestListScanManifestsReturnsNestedDependenciesInOrder(t *testing.T) {
 	ctx := context.Background()
 	db, databaseURL := openTestDatabase(t)
@@ -208,26 +313,23 @@ func TestCreateScanTracksManifestLifecycle(t *testing.T) {
 		},
 	}, got)
 
-	var packageManifestIDs []string
+	var packageScanManifestCount int
+	var packageManifestUsesLatestScan bool
 	if err := db.QueryRow(ctx, `
-		select array_agg(manifest_id order by scan_id asc)
-		from scan_manifests
-		where scan_id in ($1, $2)
-		  and manifest_id = (
-			  select id
-			  from manifests
-			  where repository_id = (
-				  select repository_id
-				  from scans
-				  where id = $1
-			  )
-			  and path = 'package.json'
-		  )
-	`, firstID, secondID).Scan(&packageManifestIDs); err != nil {
-		t.Fatalf("query package manifest ids error = %v", err)
+		select count(*), bool_or(sm.scan_id = $2)
+		from scan_manifests sm
+		join manifests m on m.id = sm.manifest_id
+		where m.repository_id = (
+			select repository_id
+			from scans
+			where id = $1
+		)
+		  and m.path = 'package.json'
+	`, firstID, secondID).Scan(&packageScanManifestCount, &packageManifestUsesLatestScan); err != nil {
+		t.Fatalf("query package scan manifest error = %v", err)
 	}
-	require.Len(t, packageManifestIDs, 2)
-	require.Equal(t, packageManifestIDs[0], packageManifestIDs[1])
+	require.Equal(t, 1, packageScanManifestCount)
+	require.True(t, packageManifestUsesLatestScan)
 }
 
 func TestCreateScanUpsertsRepositoryByNameAndOverwritesMetadata(t *testing.T) {
