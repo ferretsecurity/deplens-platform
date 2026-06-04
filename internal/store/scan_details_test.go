@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"reflect"
 	"testing"
 	"time"
@@ -262,7 +263,7 @@ func TestCreateScanTracksManifestLifecycle(t *testing.T) {
 	}
 
 	rows, err := store.DB.Query(ctx, `
-		select path, first_seen_at, last_seen_at, is_active
+		select path, first_seen_at, last_seen_at, disappeared_at
 		from manifests
 		order by path asc
 	`)
@@ -275,17 +276,20 @@ func TestCreateScanTracksManifestLifecycle(t *testing.T) {
 		Path        string
 		FirstSeenAt time.Time
 		LastSeenAt  time.Time
-		IsActive    bool
+		Disappeared sql.NullTime
 	}
 
 	got := make([]manifestRow, 0, 2)
 	for rows.Next() {
 		var row manifestRow
-		if err := rows.Scan(&row.Path, &row.FirstSeenAt, &row.LastSeenAt, &row.IsActive); err != nil {
+		if err := rows.Scan(&row.Path, &row.FirstSeenAt, &row.LastSeenAt, &row.Disappeared); err != nil {
 			t.Fatalf("scan manifest row error = %v", err)
 		}
 		row.FirstSeenAt = row.FirstSeenAt.UTC()
 		row.LastSeenAt = row.LastSeenAt.UTC()
+		if row.Disappeared.Valid {
+			row.Disappeared.Time = row.Disappeared.Time.UTC()
+		}
 		got = append(got, row)
 	}
 	if err := rows.Err(); err != nil {
@@ -303,13 +307,12 @@ func TestCreateScanTracksManifestLifecycle(t *testing.T) {
 			Path:        "Cargo.lock",
 			FirstSeenAt: firstScanTime,
 			LastSeenAt:  firstScanTime,
-			IsActive:    false,
+			Disappeared: sql.NullTime{Time: secondScanTime, Valid: true},
 		},
 		{
 			Path:        "package.json",
 			FirstSeenAt: firstScanTime,
 			LastSeenAt:  secondScanTime,
-			IsActive:    true,
 		},
 	}, got)
 
@@ -330,6 +333,93 @@ func TestCreateScanTracksManifestLifecycle(t *testing.T) {
 	}
 	require.Equal(t, 1, packageScanManifestCount)
 	require.True(t, packageManifestUsesLatestScan)
+}
+
+func TestListRepositoryManifestsReturnsLifecycleRowsForTenantRepository(t *testing.T) {
+	ctx := context.Background()
+	db, databaseURL := openTestDatabase(t)
+	require.NoError(t, Migrate(databaseURL))
+
+	store := Store{DB: db}
+	tenantID := mustCreateTenant(t, ctx, db)
+	otherTenantID := mustCreateTenantWithSlug(t, ctx, db, "other-tenant")
+
+	firstScanTime := time.Date(2026, 5, 8, 10, 0, 0, 0, time.UTC)
+	secondScanTime := time.Date(2026, 5, 9, 10, 0, 0, 0, time.UTC)
+
+	_, err := store.CreateScan(ctx, UploadScanParams{
+		TenantID:       tenantID,
+		RepositoryName: "Repo",
+		URL:            "https://example.com/repo.git",
+		DefaultBranch:  "main",
+		ArtifactKey:    "artifact-1",
+		ArtifactSHA256: "sha-1",
+		SchemaVersion:  "v1alpha1",
+		RootPath:       ".",
+		CommitSHA:      "commit-1",
+		SourceRef:      "refs/heads/main",
+		ScannedAt:      firstScanTime,
+		Manifests: []UploadManifestParams{
+			{Position: 0, Type: "rust", Path: "Cargo.lock"},
+			{Position: 1, Type: "npm", Path: "package-lock.json"},
+		},
+	})
+	require.NoError(t, err)
+
+	_, err = store.CreateScan(ctx, UploadScanParams{
+		TenantID:       tenantID,
+		RepositoryName: "Repo",
+		URL:            "https://example.com/repo.git",
+		DefaultBranch:  "main",
+		ArtifactKey:    "artifact-2",
+		ArtifactSHA256: "sha-2",
+		SchemaVersion:  "v1alpha1",
+		RootPath:       ".",
+		CommitSHA:      "commit-2",
+		SourceRef:      "refs/heads/main",
+		ScannedAt:      secondScanTime,
+		Manifests: []UploadManifestParams{
+			{Position: 0, Type: "npm", Path: "package-lock.json"},
+		},
+	})
+	require.NoError(t, err)
+
+	_, err = store.CreateScan(ctx, UploadScanParams{
+		TenantID:       otherTenantID,
+		RepositoryName: "Other Repo",
+		URL:            "https://example.com/other.git",
+		DefaultBranch:  "main",
+		ArtifactKey:    "artifact-other",
+		ArtifactSHA256: "sha-other",
+		SchemaVersion:  "v1alpha1",
+		RootPath:       ".",
+		CommitSHA:      "commit-other",
+		SourceRef:      "refs/heads/main",
+		ScannedAt:      firstScanTime,
+		Manifests: []UploadManifestParams{
+			{Position: 0, Type: "go", Path: "go.mod"},
+		},
+	})
+	require.NoError(t, err)
+
+	repositories, err := ScanStore{DB: db}.ListRepositories(ctx, tenantID)
+	require.NoError(t, err)
+	require.Len(t, repositories, 1)
+
+	items, err := ScanStore{DB: db}.ListRepositoryManifests(ctx, tenantID, repositories[0].ID)
+	require.NoError(t, err)
+	require.Len(t, items, 2)
+
+	require.Equal(t, "package-lock.json", items[0].Path)
+	require.True(t, items[0].IsActive)
+	require.Nil(t, items[0].DisappearedAt)
+	require.Equal(t, firstScanTime, items[0].FirstSeenAt.UTC())
+	require.Equal(t, secondScanTime, items[0].LastSeenAt.UTC())
+
+	require.Equal(t, "Cargo.lock", items[1].Path)
+	require.False(t, items[1].IsActive)
+	require.NotNil(t, items[1].DisappearedAt)
+	require.Equal(t, secondScanTime, items[1].DisappearedAt.UTC())
 }
 
 func TestCreateScanUpsertsRepositoryByNameAndOverwritesMetadata(t *testing.T) {
@@ -484,13 +574,5 @@ func mustCreateScanWithDetails(t *testing.T, ctx context.Context, store Store, t
 func mustCreateTenant(t *testing.T, ctx context.Context, db *pgxpool.Pool) string {
 	t.Helper()
 
-	var tenantID string
-	if err := db.QueryRow(ctx, `
-		insert into tenants (slug, name)
-		values ('scan-detail-tests', 'Scan Detail Tests')
-		returning id
-	`).Scan(&tenantID); err != nil {
-		t.Fatalf("insert tenant: %v", err)
-	}
-	return tenantID
+	return mustCreateTenantWithSlug(t, ctx, db, "scan-detail-tests")
 }

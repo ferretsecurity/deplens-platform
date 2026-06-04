@@ -5,13 +5,14 @@ create table if not exists manifests (
     path text not null,
     first_seen_at timestamptz not null,
     last_seen_at timestamptz not null,
-    is_active boolean not null,
+    disappeared_at timestamptz null,
     labels jsonb not null default '{}'::jsonb,
     unique (repository_id, path)
 );
 
 create index if not exists manifests_repository_active_path_idx
-    on manifests (repository_id, is_active, path);
+    on manifests (repository_id, path)
+    where disappeared_at is null;
 
 create table if not exists scan_manifests (
     id uuid primary key default gen_random_uuid(),

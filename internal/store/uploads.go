@@ -124,10 +124,11 @@ func (s Store) CreateScan(ctx context.Context, params UploadScanParams) (string,
 
 	_, err = tx.Exec(ctx, `
 		update manifests
-		set is_active = false
+		set disappeared_at = $2
 		where repository_id = $1
-		  and path <> all($2::text[])
-	`, repositoryID, presentPaths)
+		  and path <> all($3::text[])
+		  and disappeared_at is null
+	`, repositoryID, params.ScannedAt, presentPaths)
 	if err != nil {
 		return "", err
 	}
@@ -148,10 +149,10 @@ func insertScanManifests(ctx context.Context, tx pgx.Tx, scanID string, reposito
 
 		var manifestID string
 		err = tx.QueryRow(ctx, `
-			insert into manifests (repository_id, path, first_seen_at, last_seen_at, is_active)
-			values ($1, $2, $3, $3, true)
+			insert into manifests (repository_id, path, first_seen_at, last_seen_at, disappeared_at)
+			values ($1, $2, $3, $3, null)
 			on conflict (repository_id, path)
-			do update set last_seen_at = excluded.last_seen_at, is_active = true
+			do update set last_seen_at = excluded.last_seen_at, disappeared_at = null
 			returning id
 		`, repositoryID, manifest.Path, scannedAt).Scan(&manifestID)
 		if err != nil {

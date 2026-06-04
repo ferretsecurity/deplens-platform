@@ -2,7 +2,13 @@ import { cookies } from "next/headers";
 
 import { serverApiFetch } from "./api";
 import { env } from "./env";
-import type { APITokenMetadata, RepositoryListItem, ScanListItem, ScanManifestItem } from "./types";
+import type {
+  APITokenMetadata,
+  RepositoryListItem,
+  RepositoryManifestItem,
+  ScanListItem,
+  ScanManifestItem
+} from "./types";
 
 function cookieHeaders() {
   const cookieHeader = cookies().toString();
@@ -13,6 +19,15 @@ export async function listRepositoriesServer() {
   return serverApiFetch<RepositoryListItem[]>(`${env.API_INTERNAL_BASE_URL}/api/v1/repositories`, {
     headers: cookieHeaders()
   });
+}
+
+export async function listRepositoryManifestsServer(repositoryId: string) {
+  return serverApiFetch<{ items: RepositoryManifestItem[] }>(
+    `${env.API_INTERNAL_BASE_URL}/api/v1/repositories/${repositoryId}/manifests`,
+    {
+      headers: cookieHeaders()
+    }
+  );
 }
 
 export async function listScansServer(repositoryId: string, from: string, to: string) {
