@@ -205,6 +205,38 @@ components:
           type: object
           additionalProperties:
             type: string
+    RepositoryManifestListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/RepositoryManifest"
+    RepositoryManifest:
+      type: object
+      required: [id, path, first_seen_at, last_seen_at, disappeared_at, is_active, labels]
+      properties:
+        id:
+          type: string
+          format: uuid
+        path:
+          type: string
+        first_seen_at:
+          type: string
+          format: date-time
+        last_seen_at:
+          type: string
+          format: date-time
+        disappeared_at:
+          type: [string, "null"]
+          format: date-time
+        is_active:
+          type: boolean
+        labels:
+          type: object
+          additionalProperties:
+            type: string
     APITokenMetadata:
       type: object
       required: [id, label, scopes, created_at]
@@ -383,6 +415,23 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/RepositorySummary"
+  /api/v1/repositories/{repository_id}/manifests:
+    get:
+      summary: List durable manifest files for a repository
+      parameters:
+        - in: path
+          name: repository_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Repository manifest lifecycle rows
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RepositoryManifestListResponse"
   /api/v1/tokens:
     get:
       summary: List API token metadata for the active tenant

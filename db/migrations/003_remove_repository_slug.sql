@@ -6,6 +6,31 @@ begin
         select 1
         from information_schema.columns
         where table_schema = 'public'
+          and table_name = 'manifests'
+          and column_name = 'is_active'
+    ) then
+        alter table manifests
+            add column if not exists disappeared_at timestamptz null;
+
+        update manifests
+        set disappeared_at = now()
+        where is_active = false
+          and disappeared_at is null;
+
+        drop index if exists manifests_repository_active_path_idx;
+
+        alter table manifests
+            drop column is_active;
+
+        create index if not exists manifests_repository_active_path_idx
+            on manifests (repository_id, path)
+            where disappeared_at is null;
+    end if;
+
+    if exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'public'
           and table_name = 'repositories'
           and column_name = 'slug'
     ) then
@@ -65,7 +90,10 @@ begin
         set
             first_seen_at = least(canonical.first_seen_at, merged.first_seen_at),
             last_seen_at = greatest(canonical.last_seen_at, merged.last_seen_at),
-            is_active = canonical.is_active or merged.is_active,
+            disappeared_at = case
+                when canonical.disappeared_at is null or merged.disappeared_at is null then null
+                else greatest(canonical.disappeared_at, merged.disappeared_at)
+            end,
             labels = canonical.labels || merged.labels
         from (
             select
@@ -73,7 +101,10 @@ begin
                 manifest.path,
                 min(manifest.first_seen_at) as first_seen_at,
                 max(manifest.last_seen_at) as last_seen_at,
-                bool_or(manifest.is_active) as is_active,
+                case
+                    when bool_or(manifest.disappeared_at is null) then null
+                    else max(manifest.disappeared_at)
+                end as disappeared_at,
                 coalesce(
                     jsonb_object_agg(label.key, label.value) filter (where label.key is not null),
                     '{}'::jsonb
@@ -91,7 +122,7 @@ begin
             path,
             first_seen_at,
             last_seen_at,
-            is_active,
+            disappeared_at,
             labels
         )
         select
@@ -99,7 +130,10 @@ begin
             manifest.path,
             min(manifest.first_seen_at),
             max(manifest.last_seen_at),
-            bool_or(manifest.is_active),
+            case
+                when bool_or(manifest.disappeared_at is null) then null
+                else max(manifest.disappeared_at)
+            end,
             coalesce(
                 jsonb_object_agg(label.key, label.value) filter (where label.key is not null),
                 '{}'::jsonb

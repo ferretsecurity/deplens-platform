@@ -27,5 +27,9 @@ describe("RepositoriesPage", () => {
       "href",
       "/app/scans?repository_id=repo-1"
     );
+    expect(screen.getByRole("link", { name: /manifest files/i })).toHaveAttribute(
+      "href",
+      "/app/repositories/repo-1/manifests"
+    );
   });
 });

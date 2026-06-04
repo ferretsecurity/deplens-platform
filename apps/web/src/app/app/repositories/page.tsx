@@ -27,7 +27,7 @@ export default async function RepositoriesPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>URL</TableHead>
                   <TableHead>Default branch</TableHead>
-                  <TableHead className="text-right">Scans</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -46,12 +46,20 @@ export default async function RepositoriesPage() {
                     </TableCell>
                     <TableCell>{repository.default_branch}</TableCell>
                     <TableCell className="text-right">
-                      <Link
-                        className="font-medium text-slate-900 underline-offset-4 hover:underline"
-                        href={`/app/scans?repository_id=${repository.id}`}
-                      >
-                        Open scans
-                      </Link>
+                      <div className="flex flex-col items-end gap-2 sm:flex-row sm:justify-end">
+                        <Link
+                          className="font-medium text-slate-900 underline-offset-4 hover:underline"
+                          href={`/app/repositories/${repository.id}/manifests`}
+                        >
+                          Manifest files
+                        </Link>
+                        <Link
+                          className="font-medium text-slate-900 underline-offset-4 hover:underline"
+                          href={`/app/scans?repository_id=${repository.id}`}
+                        >
+                          Open scans
+                        </Link>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

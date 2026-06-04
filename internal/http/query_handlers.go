@@ -15,6 +15,7 @@ import (
 
 type QueryService interface {
 	ListRepositories(r *http.Request, token string) (any, error)
+	ListRepositoryManifests(r *http.Request, token string) (any, error)
 	ListScans(r *http.Request, token string) (any, error)
 	GetScan(r *http.Request, token string) (any, error)
 	ListScanManifests(r *http.Request, token string) (any, error)
@@ -23,6 +24,7 @@ type QueryService interface {
 
 type QueryStore interface {
 	ListRepositories(ctx context.Context, tenantID string) ([]store.RepositoryListItem, error)
+	ListRepositoryManifests(ctx context.Context, tenantID string, repositoryID string) ([]store.RepositoryManifestItem, error)
 	ListScans(ctx context.Context, filter store.ScanFilter) ([]store.ScanListItem, error)
 	GetScan(ctx context.Context, tenantID string, scanID string) (store.ScanListItem, error)
 	ListScanManifests(ctx context.Context, tenantID string, scanID string) ([]store.ScanManifestItem, error)
@@ -30,8 +32,8 @@ type QueryStore interface {
 }
 
 type ProductionQueryService struct {
-	Lookup TokenLookup
-	Reads  QueryStore
+	Lookup   TokenLookup
+	Reads    QueryStore
 	Sessions *scs.SessionManager
 }
 
@@ -53,8 +55,8 @@ func newBadRequestError(err error) error {
 
 func NewProductionQueryService(lookup TokenLookup, reads QueryStore, sessions *scs.SessionManager) ProductionQueryService {
 	return ProductionQueryService{
-		Lookup: lookup,
-		Reads:  reads,
+		Lookup:   lookup,
+		Reads:    reads,
 		Sessions: sessions,
 	}
 }
@@ -65,6 +67,24 @@ func (s ProductionQueryService) ListRepositories(r *http.Request, token string) 
 		return nil, errUnauthorized
 	}
 	return s.Reads.ListRepositories(r.Context(), tenantID)
+}
+
+func (s ProductionQueryService) ListRepositoryManifests(r *http.Request, token string) (any, error) {
+	tenantID, _, err := s.authorizeRead(r, token)
+	if err != nil {
+		return nil, errUnauthorized
+	}
+
+	repositoryID := r.PathValue("repository_id")
+	if _, err := uuid.Parse(repositoryID); err != nil {
+		return nil, newBadRequestError(err)
+	}
+
+	items, err := s.Reads.ListRepositoryManifests(r.Context(), tenantID, repositoryID)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"items": items}, nil
 }
 
 func (s ProductionQueryService) ListScans(r *http.Request, token string) (any, error) {
@@ -180,6 +200,9 @@ func NewQueryRouter(service QueryService) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/v1/repositories", func(w http.ResponseWriter, r *http.Request) {
 		writeJSONResult(w, r, service.ListRepositories)
+	})
+	mux.HandleFunc("GET /api/v1/repositories/{repository_id}/manifests", func(w http.ResponseWriter, r *http.Request) {
+		writeJSONResult(w, r, service.ListRepositoryManifests)
 	})
 	mux.HandleFunc("GET /api/v1/scans", func(w http.ResponseWriter, r *http.Request) {
 		writeJSONResult(w, r, service.ListScans)

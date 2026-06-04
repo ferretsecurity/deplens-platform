@@ -83,6 +83,48 @@ func TestListRepositoriesAcceptsSessionAuth(t *testing.T) {
 	require.Contains(t, rr.Body.String(), `"id":"repo-123"`)
 }
 
+func TestListRepositoryManifestsReturnsItems(t *testing.T) {
+	handler := newTestQueryRouter(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/repositories/11111111-1111-1111-1111-111111111111/manifests", nil)
+	req.Header.Set("Authorization", "Bearer bootstrap-token")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	require.Contains(t, rr.Body.String(), `"path":"package-lock.json"`)
+	require.Contains(t, rr.Body.String(), `"is_active":true`)
+	require.Contains(t, rr.Body.String(), `"disappeared_at":null`)
+}
+
+func TestListRepositoryManifestsRejectsInvalidRepositoryIDBeforeStore(t *testing.T) {
+	store := &fakeQueryStore{}
+	handler := newTestQueryRouterWithStore(t, store)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/repositories/repo-123/manifests", nil)
+	req.Header.Set("Authorization", "Bearer bootstrap-token")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+	require.Zero(t, store.listRepositoryManifestsCalls)
+}
+
+func TestListRepositoryManifestsAcceptsSessionAuth(t *testing.T) {
+	sessions := auth.NewSessionManager(auth.SessionConfig{})
+	handler := sessions.LoadAndSave(newTestQueryRouterWithSessions(t, sessions))
+
+	req := requestWithQuerySession(t, sessions, http.MethodGet, "/api/v1/repositories/11111111-1111-1111-1111-111111111111/manifests")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	require.Contains(t, rr.Body.String(), `"path":"package-lock.json"`)
+}
+
 func TestListScanManifestsReturnsPath(t *testing.T) {
 	handler := newTestQueryRouter(t)
 
@@ -136,7 +178,8 @@ func (fakeTokenLookup) FindToken(_ context.Context, tokenHash string) (string, [
 }
 
 type fakeQueryStore struct {
-	listScansCalls int
+	listScansCalls               int
+	listRepositoryManifestsCalls int
 }
 
 func (*fakeQueryStore) ListRepositories(_ context.Context, tenantID string) ([]store.RepositoryListItem, error) {
@@ -165,6 +208,22 @@ func (f *fakeQueryStore) ListScans(_ context.Context, filter store.ScanFilter) (
 		DependencyCount: 2,
 		Labels:          map[string]string{"env": "prod"},
 		Annotation:      "blessed build",
+	}}, nil
+}
+
+func (f *fakeQueryStore) ListRepositoryManifests(_ context.Context, tenantID string, repositoryID string) ([]store.RepositoryManifestItem, error) {
+	f.listRepositoryManifestsCalls++
+	if tenantID != "tenant-1" || repositoryID != "11111111-1111-1111-1111-111111111111" {
+		return nil, errUnauthorized
+	}
+	return []store.RepositoryManifestItem{{
+		ID:            "manifest-123",
+		Path:          "package-lock.json",
+		FirstSeenAt:   time.Date(2026, time.May, 4, 12, 0, 0, 0, time.UTC),
+		LastSeenAt:    time.Date(2026, time.May, 5, 12, 0, 0, 0, time.UTC),
+		DisappearedAt: nil,
+		IsActive:      true,
+		Labels:        map[string]string{"owner": "ui"},
 	}}, nil
 }
 

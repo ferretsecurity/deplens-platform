@@ -19,6 +19,16 @@ export type RepositoryListItem = {
   default_branch: string;
 };
 
+export type RepositoryManifestItem = {
+  id: string;
+  path: string;
+  first_seen_at: string;
+  last_seen_at: string;
+  disappeared_at: string | null;
+  is_active: boolean;
+  labels: Record<string, string>;
+};
+
 export type ScanListItem = {
   id: string;
   repository_id: string;

@@ -26,6 +26,16 @@ type RepositoryListItem struct {
 	DefaultBranch string `json:"default_branch"`
 }
 
+type RepositoryManifestItem struct {
+	ID            string            `json:"id"`
+	Path          string            `json:"path"`
+	FirstSeenAt   time.Time         `json:"first_seen_at"`
+	LastSeenAt    time.Time         `json:"last_seen_at"`
+	DisappearedAt *time.Time        `json:"disappeared_at"`
+	IsActive      bool              `json:"is_active"`
+	Labels        map[string]string `json:"labels"`
+}
+
 type ScanFilter struct {
 	TenantID     string
 	RepositoryID string
@@ -53,6 +63,34 @@ func (s ScanStore) ListRepositories(ctx context.Context, tenantID string) ([]Rep
 	for rows.Next() {
 		var item RepositoryListItem
 		if err := rows.Scan(&item.ID, &item.Name, &item.URL, &item.DefaultBranch); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (s ScanStore) ListRepositoryManifests(ctx context.Context, tenantID string, repositoryID string) ([]RepositoryManifestItem, error) {
+	rows, err := s.DB.Query(ctx, `
+		select m.id, m.path, m.first_seen_at, m.last_seen_at, m.disappeared_at, m.disappeared_at is null, m.labels
+		from manifests m
+		join repositories r on r.id = m.repository_id
+		where r.tenant_id = $1 and m.repository_id = $2
+		order by (m.disappeared_at is null) desc, m.path asc
+	`, tenantID, repositoryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]RepositoryManifestItem, 0)
+	for rows.Next() {
+		var item RepositoryManifestItem
+		var labelsJSON []byte
+		if err := rows.Scan(&item.ID, &item.Path, &item.FirstSeenAt, &item.LastSeenAt, &item.DisappearedAt, &item.IsActive, &labelsJSON); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(labelsJSON, &item.Labels); err != nil {
 			return nil, err
 		}
 		items = append(items, item)
