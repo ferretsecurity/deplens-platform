@@ -422,6 +422,169 @@ func TestListRepositoryManifestsReturnsLifecycleRowsForTenantRepository(t *testi
 	require.Equal(t, secondScanTime, items[1].DisappearedAt.UTC())
 }
 
+func TestListDependenciesAggregatesActiveManifestDependencies(t *testing.T) {
+	ctx := context.Background()
+	db, databaseURL := openTestDatabase(t)
+	require.NoError(t, Migrate(databaseURL))
+
+	store := Store{DB: db}
+	tenantID := mustCreateTenant(t, ctx, db)
+	otherTenantID := mustCreateTenantWithSlug(t, ctx, db, "dependency-other-tenant")
+	hasDependencies := true
+
+	_, err := store.CreateScan(ctx, UploadScanParams{
+		TenantID:       tenantID,
+		RepositoryName: "Repo One",
+		URL:            "https://example.com/one.git",
+		DefaultBranch:  "main",
+		ArtifactKey:    "artifact-1",
+		ArtifactSHA256: "sha-1",
+		SchemaVersion:  "v1alpha1",
+		RootPath:       ".",
+		CommitSHA:      "commit-1",
+		SourceRef:      "refs/heads/main",
+		ScannedAt:      time.Date(2026, 5, 8, 10, 0, 0, 0, time.UTC),
+		Manifests: []UploadManifestParams{
+			{
+				Position:        0,
+				Type:            "npm",
+				Path:            "package-lock.json",
+				HasDependencies: &hasDependencies,
+				Dependencies: []UploadDependencyParams{
+					{Position: 0, Raw: "react@19.1.0", Name: "react", Version: "19.1.0"},
+					{Position: 1, Raw: "internal-lib ^2", Name: "internal-lib", Constraint: "^2"},
+				},
+			},
+			{
+				Position:        1,
+				Type:            "npm",
+				Path:            "packages/app/package-lock.json",
+				HasDependencies: &hasDependencies,
+				Dependencies: []UploadDependencyParams{
+					{Position: 0, Raw: "react@19.1.0", Name: "react", Version: "19.1.0"},
+				},
+			},
+			{
+				Position:        2,
+				Type:            "npm",
+				Path:            "old/package-lock.json",
+				HasDependencies: &hasDependencies,
+				Dependencies: []UploadDependencyParams{
+					{Position: 0, Raw: "gone@1.0.0", Name: "gone", Version: "1.0.0"},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	_, err = store.CreateScan(ctx, UploadScanParams{
+		TenantID:       tenantID,
+		RepositoryName: "Repo One",
+		URL:            "https://example.com/one.git",
+		DefaultBranch:  "main",
+		ArtifactKey:    "artifact-2",
+		ArtifactSHA256: "sha-2",
+		SchemaVersion:  "v1alpha1",
+		RootPath:       ".",
+		CommitSHA:      "commit-2",
+		SourceRef:      "refs/heads/main",
+		ScannedAt:      time.Date(2026, 5, 9, 10, 0, 0, 0, time.UTC),
+		Manifests: []UploadManifestParams{
+			{
+				Position:        0,
+				Type:            "npm",
+				Path:            "package-lock.json",
+				HasDependencies: &hasDependencies,
+				Dependencies: []UploadDependencyParams{
+					{Position: 0, Raw: "react@19.1.0", Name: "react", Version: "19.1.0"},
+				},
+			},
+			{
+				Position:        1,
+				Type:            "npm",
+				Path:            "packages/app/package-lock.json",
+				HasDependencies: &hasDependencies,
+				Dependencies: []UploadDependencyParams{
+					{Position: 0, Raw: "react@19.1.0", Name: "react", Version: "19.1.0"},
+					{Position: 1, Raw: "internal-lib ^2", Name: "internal-lib", Constraint: "^2"},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	_, err = store.CreateScan(ctx, UploadScanParams{
+		TenantID:       tenantID,
+		RepositoryName: "Repo Two",
+		URL:            "https://example.com/two.git",
+		DefaultBranch:  "main",
+		ArtifactKey:    "artifact-3",
+		ArtifactSHA256: "sha-3",
+		SchemaVersion:  "v1alpha1",
+		RootPath:       ".",
+		CommitSHA:      "commit-3",
+		SourceRef:      "refs/heads/main",
+		ScannedAt:      time.Date(2026, 5, 10, 10, 0, 0, 0, time.UTC),
+		Manifests: []UploadManifestParams{
+			{
+				Position:        0,
+				Type:            "go",
+				Path:            "go.mod",
+				HasDependencies: &hasDependencies,
+				Dependencies: []UploadDependencyParams{
+					{Position: 0, Raw: "react@19.1.0", Name: "react", Version: "19.1.0"},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	_, err = store.CreateScan(ctx, UploadScanParams{
+		TenantID:       otherTenantID,
+		RepositoryName: "Other Repo",
+		URL:            "https://example.com/other.git",
+		DefaultBranch:  "main",
+		ArtifactKey:    "artifact-other",
+		ArtifactSHA256: "sha-other",
+		SchemaVersion:  "v1alpha1",
+		RootPath:       ".",
+		CommitSHA:      "commit-other",
+		SourceRef:      "refs/heads/main",
+		ScannedAt:      time.Date(2026, 5, 10, 10, 0, 0, 0, time.UTC),
+		Manifests: []UploadManifestParams{
+			{
+				Position:        0,
+				Type:            "npm",
+				Path:            "package-lock.json",
+				HasDependencies: &hasDependencies,
+				Dependencies: []UploadDependencyParams{
+					{Position: 0, Raw: "zod@3.24.4", Name: "zod", Version: "3.24.4"},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	items, err := ScanStore{DB: db}.ListDependencies(ctx, tenantID)
+	require.NoError(t, err)
+	require.Equal(t, []DependencyListItem{
+		{
+			Raw:               "react@19.1.0",
+			Name:              "react",
+			Version:           "19.1.0",
+			RepositoryCount:   2,
+			ManifestFileCount: 3,
+		},
+		{
+			Raw:               "internal-lib ^2",
+			Name:              "internal-lib",
+			Constraint:        "^2",
+			RepositoryCount:   1,
+			ManifestFileCount: 1,
+		},
+	}, items)
+}
+
 func TestCreateScanUpsertsRepositoryByNameAndOverwritesMetadata(t *testing.T) {
 	ctx := context.Background()
 	db, databaseURL := openTestDatabase(t)

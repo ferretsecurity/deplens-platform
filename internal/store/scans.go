@@ -98,6 +98,64 @@ func (s ScanStore) ListRepositoryManifests(ctx context.Context, tenantID string,
 	return items, rows.Err()
 }
 
+func (s ScanStore) ListDependencies(ctx context.Context, tenantID string) ([]DependencyListItem, error) {
+	rows, err := s.DB.Query(ctx, `
+		with active_dependencies as (
+			select
+				d.id,
+				d.raw,
+				d.name,
+				d.version,
+				d."constraint",
+				m.id as manifest_id,
+				r.id as repository_id,
+				(d.name <> '' and d.version <> '') as is_grouped
+			from manifest_dependencies d
+			join scan_manifests sm on sm.id = d.scan_manifest_id
+			join manifests m on m.id = sm.manifest_id
+			join repositories r on r.id = m.repository_id
+			where r.tenant_id = $1
+			  and m.disappeared_at is null
+		)
+		select
+			min(raw) as raw,
+			case when is_grouped then max(name) else min(name) end as name,
+			case when is_grouped then max(version) else min(version) end as version,
+			min("constraint") as "constraint",
+			count(distinct repository_id) as repository_count,
+			count(distinct manifest_id) as manifest_file_count
+		from active_dependencies
+		group by
+			is_grouped,
+			case when is_grouped then name else id::text end,
+			case when is_grouped then version else id::text end
+		order by
+			is_grouped desc,
+			count(distinct repository_id) desc,
+			count(distinct manifest_id) desc,
+			case
+				when is_grouped then max(name) || '@' || max(version)
+				when min(name) <> '' and min("constraint") <> '' then min(name) || ' ' || min("constraint")
+				when min(raw) <> '' then min(raw)
+				else 'Unknown dependency'
+			end asc
+	`, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]DependencyListItem, 0)
+	for rows.Next() {
+		var item DependencyListItem
+		if err := rows.Scan(&item.Raw, &item.Name, &item.Version, &item.Constraint, &item.RepositoryCount, &item.ManifestFileCount); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
 func (s ScanStore) ListScans(ctx context.Context, filter ScanFilter) ([]ScanListItem, error) {
 	rows, err := s.DB.Query(ctx, `
 		select s.id, s.repository_id, s.commit_sha, s.scanned_at, s.manifest_count, s.dependency_count, s.labels, s.annotation

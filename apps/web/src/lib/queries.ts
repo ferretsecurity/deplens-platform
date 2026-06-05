@@ -4,6 +4,7 @@ import { serverApiFetch } from "./api";
 import { env } from "./env";
 import type {
   APITokenMetadata,
+  DependencyListItem,
   RepositoryListItem,
   RepositoryManifestItem,
   ScanListItem,
@@ -28,6 +29,12 @@ export async function listRepositoryManifestsServer(repositoryId: string) {
       headers: cookieHeaders()
     }
   );
+}
+
+export async function listDependenciesServer() {
+  return serverApiFetch<{ items: DependencyListItem[] }>(`${env.API_INTERNAL_BASE_URL}/api/v1/dependencies`, {
+    headers: cookieHeaders()
+  });
 }
 
 export async function listScansServer(repositoryId: string, from: string, to: string) {

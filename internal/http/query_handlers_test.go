@@ -125,6 +125,22 @@ func TestListRepositoryManifestsAcceptsSessionAuth(t *testing.T) {
 	require.Contains(t, rr.Body.String(), `"path":"package-lock.json"`)
 }
 
+func TestListDependenciesReturnsItems(t *testing.T) {
+	handler := newTestQueryRouter(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/dependencies", nil)
+	req.Header.Set("Authorization", "Bearer bootstrap-token")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	require.Contains(t, rr.Body.String(), `"name":"react"`)
+	require.Contains(t, rr.Body.String(), `"version":"19.1.0"`)
+	require.Contains(t, rr.Body.String(), `"repository_count":2`)
+	require.Contains(t, rr.Body.String(), `"manifest_file_count":3`)
+}
+
 func TestListScanManifestsReturnsPath(t *testing.T) {
 	handler := newTestQueryRouter(t)
 
@@ -224,6 +240,19 @@ func (f *fakeQueryStore) ListRepositoryManifests(_ context.Context, tenantID str
 		DisappearedAt: nil,
 		IsActive:      true,
 		Labels:        map[string]string{"owner": "ui"},
+	}}, nil
+}
+
+func (*fakeQueryStore) ListDependencies(_ context.Context, tenantID string) ([]store.DependencyListItem, error) {
+	if tenantID != "tenant-1" {
+		return nil, errUnauthorized
+	}
+	return []store.DependencyListItem{{
+		Raw:               "react@19.1.0",
+		Name:              "react",
+		Version:           "19.1.0",
+		RepositoryCount:   2,
+		ManifestFileCount: 3,
 	}}, nil
 }
 

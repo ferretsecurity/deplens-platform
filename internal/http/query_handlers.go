@@ -16,6 +16,7 @@ import (
 type QueryService interface {
 	ListRepositories(r *http.Request, token string) (any, error)
 	ListRepositoryManifests(r *http.Request, token string) (any, error)
+	ListDependencies(r *http.Request, token string) (any, error)
 	ListScans(r *http.Request, token string) (any, error)
 	GetScan(r *http.Request, token string) (any, error)
 	ListScanManifests(r *http.Request, token string) (any, error)
@@ -25,6 +26,7 @@ type QueryService interface {
 type QueryStore interface {
 	ListRepositories(ctx context.Context, tenantID string) ([]store.RepositoryListItem, error)
 	ListRepositoryManifests(ctx context.Context, tenantID string, repositoryID string) ([]store.RepositoryManifestItem, error)
+	ListDependencies(ctx context.Context, tenantID string) ([]store.DependencyListItem, error)
 	ListScans(ctx context.Context, filter store.ScanFilter) ([]store.ScanListItem, error)
 	GetScan(ctx context.Context, tenantID string, scanID string) (store.ScanListItem, error)
 	ListScanManifests(ctx context.Context, tenantID string, scanID string) ([]store.ScanManifestItem, error)
@@ -81,6 +83,19 @@ func (s ProductionQueryService) ListRepositoryManifests(r *http.Request, token s
 	}
 
 	items, err := s.Reads.ListRepositoryManifests(r.Context(), tenantID, repositoryID)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"items": items}, nil
+}
+
+func (s ProductionQueryService) ListDependencies(r *http.Request, token string) (any, error) {
+	tenantID, _, err := s.authorizeRead(r, token)
+	if err != nil {
+		return nil, errUnauthorized
+	}
+
+	items, err := s.Reads.ListDependencies(r.Context(), tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -203,6 +218,9 @@ func NewQueryRouter(service QueryService) http.Handler {
 	})
 	mux.HandleFunc("GET /api/v1/repositories/{repository_id}/manifests", func(w http.ResponseWriter, r *http.Request) {
 		writeJSONResult(w, r, service.ListRepositoryManifests)
+	})
+	mux.HandleFunc("GET /api/v1/dependencies", func(w http.ResponseWriter, r *http.Request) {
+		writeJSONResult(w, r, service.ListDependencies)
 	})
 	mux.HandleFunc("GET /api/v1/scans", func(w http.ResponseWriter, r *http.Request) {
 		writeJSONResult(w, r, service.ListScans)

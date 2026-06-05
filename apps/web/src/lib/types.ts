@@ -51,6 +51,15 @@ export type ManifestDependencyItem = {
   extras: Record<string, string>;
 };
 
+export type DependencyListItem = {
+  raw: string;
+  name: string;
+  version: string;
+  constraint: string;
+  repository_count: number;
+  manifest_file_count: number;
+};
+
 export type ScanManifestItem = {
   id: string;
   type: string;
