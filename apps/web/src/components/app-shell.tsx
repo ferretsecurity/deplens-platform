@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, LogOut, ScanLine, FolderKanban, Shield, ChevronDown, KeyRound } from "lucide-react";
+import { Menu, LogOut, ScanLine, FolderKanban, Shield, ChevronDown, KeyRound, PackageSearch } from "lucide-react";
 
 import { logout } from "@/lib/auth";
 import type { CurrentUser } from "@/lib/types";
@@ -33,6 +33,7 @@ type AppShellProps = {
 
 const navItems = [
   { href: "/app/repositories", label: "Repositories", icon: FolderKanban },
+  { href: "/app/dependencies", label: "Dependencies", icon: PackageSearch },
   { href: "/app/scans", label: "Scans", icon: ScanLine },
   { href: "/app/tokens", label: "API Tokens", icon: KeyRound }
 ];

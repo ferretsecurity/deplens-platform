@@ -82,3 +82,12 @@ type ManifestDependencyItem struct {
 	Source     string            `json:"source"`
 	Extras     map[string]string `json:"extras"`
 }
+
+type DependencyListItem struct {
+	Raw               string `json:"raw"`
+	Name              string `json:"name"`
+	Version           string `json:"version"`
+	Constraint        string `json:"constraint"`
+	RepositoryCount   int    `json:"repository_count"`
+	ManifestFileCount int    `json:"manifest_file_count"`
+}

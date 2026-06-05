@@ -237,6 +237,30 @@ components:
           type: object
           additionalProperties:
             type: string
+    DependencyListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/DependencyListItem"
+    DependencyListItem:
+      type: object
+      required: [raw, name, version, constraint, repository_count, manifest_file_count]
+      properties:
+        raw:
+          type: string
+        name:
+          type: string
+        version:
+          type: string
+        constraint:
+          type: string
+        repository_count:
+          type: integer
+        manifest_file_count:
+          type: integer
     APITokenMetadata:
       type: object
       required: [id, label, scopes, created_at]
@@ -432,6 +456,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RepositoryManifestListResponse"
+  /api/v1/dependencies:
+    get:
+      summary: List active dependencies for the current tenant
+      responses:
+        "200":
+          description: Active dependency usage rows
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DependencyListResponse"
   /api/v1/tokens:
     get:
       summary: List API token metadata for the active tenant
