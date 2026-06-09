@@ -27,7 +27,6 @@ func TestNewInitializesBlobStoreForFilesystemBackend(t *testing.T) {
 		BlobFilesystemRoot:     t.TempDir(),
 		BootstrapOwnerEmail:    "admin@example.com",
 		BootstrapOwnerPassword: "change-me-now",
-		BootstrapAPIToken:      "bootstrap-token",
 	}
 
 	application, err := New(cfg)

@@ -12,7 +12,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 )
 
-func TestBootstrapDefaultTenantCreatesTenantOwnerAndAdminToken(t *testing.T) {
+func TestBootstrapDefaultTenantCreatesTenantAndOwner(t *testing.T) {
 	ctx := context.Background()
 	db, databaseURL := openTestDatabase(t)
 
@@ -21,9 +21,8 @@ func TestBootstrapDefaultTenantCreatesTenantOwnerAndAdminToken(t *testing.T) {
 	}
 
 	input := BootstrapInput{
-		OwnerEmail:     "admin@example.com",
-		OwnerPassword:  "change-me-now",
-		BootstrapToken: "bootstrap-token",
+		OwnerEmail:    "admin@example.com",
+		OwnerPassword: "change-me-now",
 	}
 	result, err := BootstrapDefaultTenant(ctx, db, input)
 	if err != nil {
@@ -35,8 +34,12 @@ func TestBootstrapDefaultTenantCreatesTenantOwnerAndAdminToken(t *testing.T) {
 	if result.OwnerEmail != "admin@example.com" {
 		t.Fatalf("OwnerEmail = %q, want admin@example.com", result.OwnerEmail)
 	}
-	if result.CreatedTokenPlaintext != "bootstrap-token" {
-		t.Fatalf("CreatedTokenPlaintext = %q, want bootstrap-token", result.CreatedTokenPlaintext)
+	var tokenCount int
+	if err := db.QueryRow(ctx, "select count(*) from api_tokens").Scan(&tokenCount); err != nil {
+		t.Fatalf("count api_tokens error = %v", err)
+	}
+	if tokenCount != 0 {
+		t.Fatalf("api token count = %d, want 0", tokenCount)
 	}
 }
 

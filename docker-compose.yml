@@ -28,7 +28,6 @@ services:
       DATABASE_URL: ${API_DATABASE_URL:-postgres://postgres:postgres@postgres:5432/deplens?sslmode=disable}
       BOOTSTRAP_OWNER_EMAIL: ${BOOTSTRAP_OWNER_EMAIL}
       BOOTSTRAP_OWNER_PASSWORD: ${BOOTSTRAP_OWNER_PASSWORD}
-      BOOTSTRAP_API_TOKEN: ${BOOTSTRAP_API_TOKEN}
       MIGRATE_ON_START: "true"
       SESSION_COOKIE_SECURE: "true"
       TRUST_PROXY: "true"

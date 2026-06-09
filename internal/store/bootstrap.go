@@ -18,17 +18,15 @@ import (
 )
 
 type BootstrapResult struct {
-	TenantID              string
-	TenantSlug            string
-	OwnerEmail            string
-	CreatedTokenPlaintext string
+	TenantID   string
+	TenantSlug string
+	OwnerEmail string
 }
 
 type BootstrapInput struct {
 	OwnerEmail       string
 	OwnerPassword    string
 	OwnerDisplayName string
-	BootstrapToken   string
 }
 
 func Migrate(databaseURL string) error {
@@ -116,27 +114,14 @@ func BootstrapDefaultTenant(ctx context.Context, db *pgxpool.Pool, input Bootstr
 		return BootstrapResult{}, fmt.Errorf("insert tenant membership: %w", err)
 	}
 
-	if input.BootstrapToken != "" {
-		tokenHash := hashToken(input.BootstrapToken)
-		_, err = tx.Exec(ctx, `
-			insert into api_tokens (tenant_id, label, token_hash, scopes)
-			values ($1, 'bootstrap-admin', $2, array['scan:write','scan:read','scan:metadata:write'])
-			on conflict (token_hash) do nothing
-		`, tenantID, tokenHash)
-		if err != nil {
-			return BootstrapResult{}, fmt.Errorf("insert bootstrap token: %w", err)
-		}
-	}
-
 	if err := tx.Commit(ctx); err != nil {
 		return BootstrapResult{}, err
 	}
 
 	return BootstrapResult{
-		TenantID:              tenantID,
-		TenantSlug:            "default",
-		OwnerEmail:            input.OwnerEmail,
-		CreatedTokenPlaintext: input.BootstrapToken,
+		TenantID:   tenantID,
+		TenantSlug: "default",
+		OwnerEmail: input.OwnerEmail,
 	}, nil
 }
 

@@ -14,7 +14,6 @@ type Config struct {
 	BlobFilesystemRoot     string
 	BootstrapOwnerEmail    string
 	BootstrapOwnerPassword string
-	BootstrapAPIToken      string
 	AppBaseURL             string
 	SessionCookieSecure    bool
 	TrustProxy             bool
@@ -30,7 +29,6 @@ func Load() (Config, error) {
 		BlobFilesystemRoot:     os.Getenv("BLOB_FILESYSTEM_ROOT"),
 		BootstrapOwnerEmail:    os.Getenv("BOOTSTRAP_OWNER_EMAIL"),
 		BootstrapOwnerPassword: os.Getenv("BOOTSTRAP_OWNER_PASSWORD"),
-		BootstrapAPIToken:      os.Getenv("BOOTSTRAP_API_TOKEN"),
 		AppBaseURL:             getEnv("APP_BASE_URL", "http://localhost:8080"),
 		SessionCookieSecure:    getEnvBool("SESSION_COOKIE_SECURE", getEnv("DEPLOYMENT_MODE", "self-hosted") != "self-hosted"),
 		TrustProxy:             getEnvBool("TRUST_PROXY", getEnv("DEPLOYMENT_MODE", "self-hosted") != "self-hosted"),
