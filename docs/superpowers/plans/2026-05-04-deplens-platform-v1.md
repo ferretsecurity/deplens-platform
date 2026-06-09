@@ -101,7 +101,6 @@ type Config struct {
 	BlobFilesystemRoot     string
 	BootstrapOwnerEmail    string
 	BootstrapOwnerPassword string
-	BootstrapAPIToken      string
 	SessionCookieSecret    string
 }
 
@@ -114,7 +113,6 @@ func Load() (Config, error) {
 		BlobFilesystemRoot:     os.Getenv("BLOB_FILESYSTEM_ROOT"),
 		BootstrapOwnerEmail:    os.Getenv("BOOTSTRAP_OWNER_EMAIL"),
 		BootstrapOwnerPassword: os.Getenv("BOOTSTRAP_OWNER_PASSWORD"),
-		BootstrapAPIToken:      os.Getenv("BOOTSTRAP_API_TOKEN"),
 		SessionCookieSecret:    os.Getenv("SESSION_COOKIE_SECRET"),
 	}
 
@@ -132,9 +130,6 @@ func Load() (Config, error) {
 	}
 	if cfg.BootstrapOwnerPassword == "" {
 		return Config{}, errors.New("BOOTSTRAP_OWNER_PASSWORD is required")
-	}
-	if cfg.BootstrapAPIToken == "" {
-		return Config{}, errors.New("BOOTSTRAP_API_TOKEN is required")
 	}
 	if cfg.SessionCookieSecret == "" {
 		return Config{}, errors.New("SESSION_COOKIE_SECRET is required")
@@ -557,7 +552,6 @@ func TestBootstrapDefaultTenantCreatesTenantOwnerAndAdminToken(t *testing.T) {
 	input := BootstrapInput{
 		OwnerEmail:    "admin@example.com",
 		OwnerPassword: "change-me-now",
-		BootstrapToken: "bootstrap-token",
 	}
 	result, err := BootstrapDefaultTenant(ctx, db, input)
 	if err != nil {
@@ -568,9 +562,6 @@ func TestBootstrapDefaultTenantCreatesTenantOwnerAndAdminToken(t *testing.T) {
 	}
 	if result.OwnerEmail != "admin@example.com" {
 		t.Fatalf("OwnerEmail = %q, want admin@example.com", result.OwnerEmail)
-	}
-	if result.CreatedTokenPlaintext != "bootstrap-token" {
-		t.Fatalf("CreatedTokenPlaintext = %q, want bootstrap-token", result.CreatedTokenPlaintext)
 	}
 }
 ```
@@ -788,17 +779,15 @@ import (
 )
 
 type BootstrapResult struct {
-	TenantID              string
-	TenantSlug            string
-	OwnerEmail            string
-	CreatedTokenPlaintext string
+	TenantID   string
+	TenantSlug string
+	OwnerEmail string
 }
 
 type BootstrapInput struct {
 	OwnerEmail       string
 	OwnerPassword    string
 	OwnerDisplayName string
-	BootstrapToken   string
 }
 
 func Migrate(databaseURL string) error {
@@ -881,25 +870,14 @@ func BootstrapDefaultTenant(ctx context.Context, db *pgxpool.Pool, input Bootstr
 		return BootstrapResult{}, fmt.Errorf("insert tenant membership: %w", err)
 	}
 
-	tokenHash := hashToken(input.BootstrapToken)
-	_, err = tx.Exec(ctx, `
-		insert into api_tokens (tenant_id, label, token_hash, scopes)
-		values ($1, 'bootstrap-admin', $2, array['scan:write','scan:read','scan:metadata:write'])
-		on conflict (token_hash) do nothing
-	`, tenantID, tokenHash)
-	if err != nil {
-		return BootstrapResult{}, fmt.Errorf("insert bootstrap token: %w", err)
-	}
-
 	if err := tx.Commit(ctx); err != nil {
 		return BootstrapResult{}, err
 	}
 
 	return BootstrapResult{
-		TenantID:              tenantID,
-		TenantSlug:            "default",
-		OwnerEmail:            input.OwnerEmail,
-		CreatedTokenPlaintext: input.BootstrapToken,
+		TenantID:   tenantID,
+		TenantSlug: "default",
+		OwnerEmail: input.OwnerEmail,
 	}, nil
 }
 
@@ -2186,9 +2164,8 @@ func main() {
 	defer application.DB.Close()
 
 	bootstrapInput := store.BootstrapInput{
-		OwnerEmail:     cfg.BootstrapOwnerEmail,
-		OwnerPassword:  cfg.BootstrapOwnerPassword,
-		BootstrapToken: cfg.BootstrapAPIToken,
+		OwnerEmail:    cfg.BootstrapOwnerEmail,
+		OwnerPassword: cfg.BootstrapOwnerPassword,
 	}
 	if _, err := store.BootstrapDefaultTenant(context.Background(), application.DB, bootstrapInput); err != nil {
 		logger.Error("bootstrap default tenant", "error", err)
@@ -2212,7 +2189,6 @@ BLOB_FILESYSTEM_ROOT=./var/blobs
 BOOTSTRAP_OWNER_EMAIL=admin@example.com
 BOOTSTRAP_OWNER_PASSWORD=change-me-now
 SESSION_COOKIE_SECRET=replace-me
-BOOTSTRAP_API_TOKEN=change-me
 ```
 
 ```md
@@ -2250,7 +2226,7 @@ V1 should support a simple tenant invite flow:
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/scans \
-  -H 'Authorization: Bearer change-me' \
+  -H 'Authorization: Bearer <token-from-/api/v1/tokens>' \
   -H 'Content-Type: application/json' \
   -d '{
     "schema_version":"v1alpha1",
@@ -2271,7 +2247,7 @@ Run: `docker compose up -d postgres`
 Expected: PostgreSQL container starts on port 5432
 
 Run: `export $(grep -v '^#' .env.example | xargs) && go run ./cmd/deplens-platform`
-Expected: service starts on `:8080`, bootstraps the default tenant, creates the first owner user, and inserts the bootstrap API token
+Expected: service starts on `:8080`, bootstraps the default tenant, and creates the first owner user
 
 - [ ] **Step 5: Commit**
 

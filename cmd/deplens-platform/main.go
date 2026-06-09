@@ -35,9 +35,8 @@ func main() {
 	defer application.DB.Close()
 
 	bootstrapInput := store.BootstrapInput{
-		OwnerEmail:     cfg.BootstrapOwnerEmail,
-		OwnerPassword:  cfg.BootstrapOwnerPassword,
-		BootstrapToken: cfg.BootstrapAPIToken,
+		OwnerEmail:    cfg.BootstrapOwnerEmail,
+		OwnerPassword: cfg.BootstrapOwnerPassword,
 	}
 	if _, err := store.BootstrapDefaultTenant(context.Background(), application.DB, bootstrapInput); err != nil {
 		logger.Error("bootstrap default tenant", "error", err)

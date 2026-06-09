@@ -373,7 +373,6 @@ type Config struct {
 	BlobFilesystemRoot  string
 	BootstrapOwnerEmail string
 	BootstrapOwnerPassword string
-	BootstrapAPIToken   string
 	SessionCookieSecret string
 	AppBaseURL          string
 	SessionCookieSecure bool
