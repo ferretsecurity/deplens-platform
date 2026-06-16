@@ -93,9 +93,32 @@ curl -s \
 For a single-server self-hosted install:
 
 1. `cp deploy/compose/.env.example .env`
-2. Update `APP_HOST` and the bootstrap credentials in `.env`
-3. `docker compose up -d --build`
+2. Update `APP_HOST`, `DEPLENS_VERSION`, and the bootstrap credentials in `.env`
+3. `docker compose pull`
+4. `docker compose up -d`
 
 That starts `caddy`, `web`, `api`, and `postgres` behind a single origin.
 
+The default Compose stack pulls published images from GitHub Container Registry:
+
+- `ghcr.io/ferretsecurity/deplens-platform-api`
+- `ghcr.io/ferretsecurity/deplens-platform-web`
+
+Pin `DEPLENS_VERSION` to a released image tag such as `0.1.0` for production deployments. Git release tags use `vX.Y.Z`; image tags omit the leading `v`.
+
+To build the API and web images from local source instead:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+```
+
 The Compose stack uses `API_DATABASE_URL`, not the local development `DATABASE_URL`. If you reuse a local `.env` with `DATABASE_URL=...@localhost...`, the `api` container will fail to reach Postgres and requests proxied through Caddy will return `502`.
+
+## Release images
+
+Pushing a `vX.Y.Z` tag publishes `linux/amd64` API and web images to GitHub Container Registry:
+
+- `ghcr.io/ferretsecurity/deplens-platform-api`
+- `ghcr.io/ferretsecurity/deplens-platform-web`
+
+The workflow publishes the `X.Y.Z` tag for every release. Stable releases also publish moving `X.Y`, `X`, and `latest` tags. The build attaches Docker provenance and SBOM attestations and publishes a GitHub artifact attestation for each image digest.
