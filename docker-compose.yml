@@ -16,9 +16,7 @@ services:
       retries: 10
 
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile.api
+    image: ${DEPLENS_API_IMAGE:-ghcr.io/ferretsecurity/deplens-platform-api}:${DEPLENS_VERSION:-latest}
     environment:
       APP_BASE_URL: ${APP_BASE_URL:-https://localhost}
       BLOB_BACKEND: filesystem
@@ -38,9 +36,7 @@ services:
       - blobs-data:/var/lib/deplens/blobs
 
   web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
+    image: ${DEPLENS_WEB_IMAGE:-ghcr.io/ferretsecurity/deplens-platform-web}:${DEPLENS_VERSION:-latest}
     environment:
       API_INTERNAL_BASE_URL: ${API_INTERNAL_BASE_URL:-http://api:8080}
       NEXT_PUBLIC_APP_BASE_URL: ${APP_BASE_URL:-https://localhost}
