@@ -15,51 +15,5 @@ services:
       timeout: 5s
       retries: 10
 
-  api:
-    image: ${DEPLENS_API_IMAGE:-ghcr.io/ferretsecurity/deplens-platform-api}:${DEPLENS_VERSION:-latest}
-    environment:
-      APP_BASE_URL: ${APP_BASE_URL:-https://localhost}
-      BLOB_BACKEND: filesystem
-      BLOB_FILESYSTEM_ROOT: /var/lib/deplens/blobs
-      DEPLOYMENT_MODE: self-hosted
-      HTTP_ADDRESS: :8080
-      DATABASE_URL: ${API_DATABASE_URL:-postgres://postgres:postgres@postgres:5432/deplens?sslmode=disable}
-      BOOTSTRAP_OWNER_EMAIL: ${BOOTSTRAP_OWNER_EMAIL}
-      BOOTSTRAP_OWNER_PASSWORD: ${BOOTSTRAP_OWNER_PASSWORD}
-      MIGRATE_ON_START: "true"
-      SESSION_COOKIE_SECURE: "true"
-      TRUST_PROXY: "true"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    volumes:
-      - blobs-data:/var/lib/deplens/blobs
-
-  web:
-    image: ${DEPLENS_WEB_IMAGE:-ghcr.io/ferretsecurity/deplens-platform-web}:${DEPLENS_VERSION:-latest}
-    environment:
-      API_INTERNAL_BASE_URL: ${API_INTERNAL_BASE_URL:-http://api:8080}
-      NEXT_PUBLIC_APP_BASE_URL: ${APP_BASE_URL:-https://localhost}
-    depends_on:
-      - api
-
-  caddy:
-    image: caddy:2.8
-    environment:
-      APP_HOST: ${APP_HOST:-localhost}
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./deploy/compose/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - web
-      - api
-
 volumes:
-  blobs-data:
-  caddy_config:
-  caddy_data:
   postgres-data:

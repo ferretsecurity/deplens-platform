@@ -2,11 +2,11 @@ services:
   api:
     image: deplens-platform-api:local
     build:
-      context: .
+      context: ../..
       dockerfile: Dockerfile.api
 
   web:
     image: deplens-platform-web:local
     build:
-      context: .
+      context: ../..
       dockerfile: apps/web/Dockerfile

@@ -1,11 +1,15 @@
 # Compose Deployment
 
-This directory contains the self-hosted deployment contract for a single-node install.
+This directory contains the self-hosted deployment contract for a single-node
+install. Use it for both server installs and local product evaluations where you
+want to run the packaged service instead of the contributor development loop.
 
 ## Start
 
-1. `cp deploy/compose/.env.example .env`
-2. Update `APP_HOST`, `DEPLENS_VERSION`, and the bootstrap credentials in `.env`
+Run these commands from this directory:
+
+1. `cp .env.example .env`
+2. Update `APP_HOST`, `APP_BASE_URL`, `DEPLENS_VERSION`, and the secrets in `.env`
 3. `docker compose pull`
 4. `docker compose up -d`
 
@@ -19,6 +23,20 @@ The stack starts:
 ## First Login
 
 Open `https://$APP_HOST/login` and sign in with the bootstrap owner credentials from `.env`.
+
+For a local evaluation, keep:
+
+```env
+APP_HOST=localhost
+APP_BASE_URL=https://localhost
+```
+
+For a server, set both values to the public HTTPS origin, for example:
+
+```env
+APP_HOST=deplens.example.com
+APP_BASE_URL=https://deplens.example.com
+```
 
 ## Image Versions
 
@@ -49,15 +67,18 @@ To upgrade:
 
 ## Build From Source
 
-Use the build override when developing locally or testing a private fork from source:
+Use the build override when testing a private fork from source with the same
+self-hosted topology:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+docker compose -f compose.yml -f compose.build.yml up -d --build
 ```
 
 ## Notes
 
 - `api` reads migrations from the bundled `/src/db/migrations` path at startup.
-- Compose uses `API_DATABASE_URL` for the backend container. Do not reuse a local-only `DATABASE_URL=...@localhost...` value here, because `localhost` inside the container is not the `postgres` service.
+- The root `docker-compose.yml` is for contributor development and only starts local infrastructure.
+- Compose builds the backend container database URL from `POSTGRES_PASSWORD`. Do not reuse a local-only `DATABASE_URL=...@localhost...` value here, because `localhost` inside the container is not the `postgres` service.
 - `caddy` needs `APP_HOST` in its environment so the Caddyfile can render the site address.
 - `web` talks to `api` over the private Compose network and serves the browser UI from a single origin.
+- Back up the `postgres-data`, `blobs-data`, `caddy_data`, and `caddy_config` volumes before upgrades.
