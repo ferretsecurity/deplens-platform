@@ -62,7 +62,8 @@ func New(cfg config.Config) (*App, error) {
 		uploadService,
 		httpapi.NewProductionQueryService(persistence, store.ScanStore{DB: db}, sessionManager),
 	)
-	handler := sessionManager.LoadAndSave(routeAuthAndAPI(authRouter, tokenRouter, apiRouter))
+	appHandler := sessionManager.LoadAndSave(routeAuthAndAPI(authRouter, tokenRouter, apiRouter))
+	handler := routeHealthAndApp(httpapi.NewHealthRouter(databaseReadinessChecker{DB: db}), appHandler)
 
 	return &App{
 		Config:    cfg,
@@ -84,4 +85,22 @@ func routeAuthAndAPI(authRouter http.Handler, tokenRouter http.Handler, apiRoute
 		}
 		apiRouter.ServeHTTP(w, r)
 	})
+}
+
+func routeHealthAndApp(healthRouter http.Handler, appHandler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/healthz" || r.URL.Path == "/readyz" {
+			healthRouter.ServeHTTP(w, r)
+			return
+		}
+		appHandler.ServeHTTP(w, r)
+	})
+}
+
+type databaseReadinessChecker struct {
+	DB *pgxpool.Pool
+}
+
+func (c databaseReadinessChecker) CheckReady(ctx context.Context) error {
+	return c.DB.Ping(ctx)
 }

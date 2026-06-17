@@ -126,6 +126,30 @@ func TestRouteAuthAndAPIForwardsTokenItemPathsToTokenRouter(t *testing.T) {
 	}
 }
 
+func TestRouteHealthAndAppBypassesSessionWrappedHandler(t *testing.T) {
+	handler := routeHealthAndApp(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		}),
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Set-Cookie", "session=created")
+			w.WriteHeader(http.StatusOK)
+		}),
+	)
+
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", rr.Code, http.StatusNoContent)
+	}
+	if got := rr.Header().Get("Set-Cookie"); got != "" {
+		t.Fatalf("Set-Cookie = %q, want empty header", got)
+	}
+}
+
 func openTestDatabase(t *testing.T) (*pgxpool.Pool, string) {
 	t.Helper()
 

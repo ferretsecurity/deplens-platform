@@ -77,6 +77,7 @@ docker compose -f compose.yml -f compose.build.yml up -d --build
 ## Notes
 
 - `api` reads migrations from the bundled `/src/db/migrations` path at startup.
+- `api` is marked healthy only after its `/readyz` endpoint succeeds, including database connectivity.
 - The root `docker-compose.yml` is for contributor development and only starts local infrastructure.
 - Compose builds the backend container database URL from `POSTGRES_PASSWORD`. Do not reuse a local-only `DATABASE_URL=...@localhost...` value here, because `localhost` inside the container is not the `postgres` service.
 - `caddy` needs `APP_HOST` in its environment so the Caddyfile can render the site address.
