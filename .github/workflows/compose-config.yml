@@ -1,0 +1,32 @@
+name: Compose config
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate Compose files
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Validate development Compose
+        run: docker compose config --quiet
+
+      - name: Validate deployment Compose
+        working-directory: deploy/compose
+        run: docker compose --env-file .env.example config --quiet
+
+      - name: Validate deployment source-build override
+        working-directory: deploy/compose
+        run: docker compose -f compose.yml -f compose.build.yml --env-file .env.example config --quiet

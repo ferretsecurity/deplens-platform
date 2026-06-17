@@ -90,29 +90,55 @@ curl -s \
 
 ## Compose deployment
 
-For a single-server self-hosted install:
+Use the deployment Compose files for a single-machine evaluation or single-server
+self-hosted install. This runs the packaged product: Caddy, web, API, and
+Postgres.
 
-1. `cp deploy/compose/.env.example .env`
-2. Update `APP_HOST`, `DEPLENS_VERSION`, and the bootstrap credentials in `.env`
-3. `docker compose pull`
-4. `docker compose up -d`
+1. `cd deploy/compose`
+2. `cp .env.example .env`
+3. Update `APP_HOST`, `APP_BASE_URL`, `DEPLENS_VERSION`, and the secrets in `.env`
+4. `docker compose pull`
+5. `docker compose up -d`
+
+For local evaluation on one machine, keep:
+
+```env
+APP_HOST=localhost
+APP_BASE_URL=https://localhost
+```
+
+For a server, set both values to the public HTTPS origin, for example:
+
+```env
+APP_HOST=deplens.example.com
+APP_BASE_URL=https://deplens.example.com
+```
 
 That starts `caddy`, `web`, `api`, and `postgres` behind a single origin.
 
-The default Compose stack pulls published images from GitHub Container Registry:
+The deployment Compose stack pulls published images from GitHub Container
+Registry:
 
 - `ghcr.io/ferretsecurity/deplens-platform-api`
 - `ghcr.io/ferretsecurity/deplens-platform-web`
 
-Pin `DEPLENS_VERSION` to a released image tag such as `0.1.0` for production deployments. Git release tags use `vX.Y.Z`; image tags omit the leading `v`.
+Pin `DEPLENS_VERSION` to a released image tag such as `0.1.0` for production
+deployments. Git release tags use `vX.Y.Z`; image tags omit the leading `v`.
+`latest` is convenient for quick trials but makes upgrades implicit.
 
 To build the API and web images from local source instead:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+cd deploy/compose
+docker compose -f compose.yml -f compose.build.yml up -d --build
 ```
 
-The Compose stack uses `API_DATABASE_URL`, not the local development `DATABASE_URL`. If you reuse a local `.env` with `DATABASE_URL=...@localhost...`, the `api` container will fail to reach Postgres and requests proxied through Caddy will return `502`.
+The root `docker-compose.yml` is for contributor development and only starts
+local infrastructure. Production and local product evaluation should use
+`deploy/compose/compose.yml`.
+
+The Compose stack builds its container database URL from `POSTGRES_PASSWORD`.
+Use a host-local `.env` file and do not commit real deployment secrets.
 
 ## Release images
 
