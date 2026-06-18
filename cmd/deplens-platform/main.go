@@ -14,6 +14,14 @@ import (
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
+	if len(os.Args) == 3 && os.Args[1] == "healthcheck" {
+		if err := runHealthcheck(context.Background(), os.Args[2]); err != nil {
+			logger.Error("healthcheck failed", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
 		logger.Error("load config", "error", err)

@@ -32,6 +32,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/src/deplens-platform", "healthcheck", "http://127.0.0.1:8080/readyz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
     volumes:
       - blobs-data:/var/lib/deplens/blobs
 
@@ -42,7 +48,8 @@ services:
       API_INTERNAL_BASE_URL: http://api:8080
       NEXT_PUBLIC_APP_BASE_URL: ${APP_BASE_URL:-https://localhost}
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
   caddy:
     image: caddy:2.8
@@ -57,8 +64,10 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
-      - web
-      - api
+      api:
+        condition: service_healthy
+      web:
+        condition: service_started
 
 volumes:
   blobs-data:
