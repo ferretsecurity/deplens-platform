@@ -136,9 +136,12 @@ func TestListDependenciesReturnsItems(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.Contains(t, rr.Body.String(), `"name":"react"`)
-	require.Contains(t, rr.Body.String(), `"version":"19.1.0"`)
+	require.Contains(t, rr.Body.String(), `"occurrence_count":5`)
 	require.Contains(t, rr.Body.String(), `"repository_count":2`)
-	require.Contains(t, rr.Body.String(), `"manifest_file_count":3`)
+	require.Contains(t, rr.Body.String(), `"manifest_file_count":2`)
+	require.Contains(t, rr.Body.String(), `"lock_file_count":2`)
+	require.NotContains(t, rr.Body.String(), `"version"`)
+	require.NotContains(t, rr.Body.String(), `"constraint"`)
 }
 
 func TestListScanManifestsReturnsPath(t *testing.T) {
@@ -250,9 +253,10 @@ func (*fakeQueryStore) ListDependencies(_ context.Context, tenantID string) ([]s
 	return []store.DependencyListItem{{
 		Raw:               "react@19.1.0",
 		Name:              "react",
-		Version:           "19.1.0",
+		OccurrenceCount:   5,
 		RepositoryCount:   2,
-		ManifestFileCount: 3,
+		ManifestFileCount: 2,
+		LockFileCount:     2,
 	}}, nil
 }
 

@@ -247,19 +247,19 @@ components:
             $ref: "#/components/schemas/DependencyListItem"
     DependencyListItem:
       type: object
-      required: [raw, name, version, constraint, repository_count, manifest_file_count]
+      required: [raw, name, occurrence_count, repository_count, manifest_file_count, lock_file_count]
       properties:
         raw:
           type: string
         name:
           type: string
-        version:
-          type: string
-        constraint:
-          type: string
+        occurrence_count:
+          type: integer
         repository_count:
           type: integer
         manifest_file_count:
+          type: integer
+        lock_file_count:
           type: integer
     APITokenMetadata:
       type: object

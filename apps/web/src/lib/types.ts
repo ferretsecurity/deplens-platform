@@ -54,10 +54,10 @@ export type ManifestDependencyItem = {
 export type DependencyListItem = {
   raw: string;
   name: string;
-  version: string;
-  constraint: string;
+  occurrence_count: number;
   repository_count: number;
   manifest_file_count: number;
+  lock_file_count: number;
 };
 
 export type ScanManifestItem = {

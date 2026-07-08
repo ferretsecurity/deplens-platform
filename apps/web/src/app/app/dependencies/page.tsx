@@ -6,13 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 function dependencyDisplayName(dependency: DependencyListItem) {
-  if (dependency.name && dependency.version) {
-    return `${dependency.name}@${dependency.version}`;
-  }
-  if (dependency.name && dependency.constraint) {
-    return `${dependency.name} ${dependency.constraint}`;
-  }
-  return dependency.raw || "Unknown dependency";
+  return dependency.name || dependency.raw || "Unknown dependency";
 }
 
 export default async function DependenciesPage() {
@@ -37,18 +31,22 @@ export default async function DependenciesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Dependency</TableHead>
-                  <TableHead className="text-right">Repositories</TableHead>
+                  <TableHead className="text-right">Occurrences</TableHead>
                   <TableHead className="text-right">Manifest files</TableHead>
+                  <TableHead className="text-right">Lock files</TableHead>
+                  <TableHead className="text-right">Repositories</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {dependencies.items.map((dependency, index) => (
                   <TableRow
-                    key={`${dependency.name}:${dependency.version}:${dependency.raw}:${index}`}
+                    key={`${dependency.name}:${dependency.raw}:${index}`}
                   >
                     <TableCell className="font-medium">{dependencyDisplayName(dependency)}</TableCell>
-                    <TableCell className="text-right">{dependency.repository_count}</TableCell>
+                    <TableCell className="text-right">{dependency.occurrence_count}</TableCell>
                     <TableCell className="text-right">{dependency.manifest_file_count}</TableCell>
+                    <TableCell className="text-right">{dependency.lock_file_count}</TableCell>
+                    <TableCell className="text-right">{dependency.repository_count}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

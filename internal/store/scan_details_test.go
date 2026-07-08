@@ -497,6 +497,9 @@ func TestListDependenciesAggregatesActiveManifestDependencies(t *testing.T) {
 				HasDependencies: &hasDependencies,
 				Dependencies: []UploadDependencyParams{
 					{Position: 0, Raw: "react@19.1.0", Name: "react", Version: "19.1.0"},
+					{Position: 1, Raw: "react@18.3.1", Name: "react", Version: "18.3.1"},
+					{Position: 2, Raw: "hybrid@1.0.0", Name: "hybrid", Version: "1.0.0", Constraint: "^1"},
+					{Position: 3, Raw: "raw-only-entry"},
 				},
 			},
 			{
@@ -507,6 +510,9 @@ func TestListDependenciesAggregatesActiveManifestDependencies(t *testing.T) {
 				Dependencies: []UploadDependencyParams{
 					{Position: 0, Raw: "react@19.1.0", Name: "react", Version: "19.1.0"},
 					{Position: 1, Raw: "internal-lib ^2", Name: "internal-lib", Constraint: "^2"},
+					{Position: 2, Raw: "react ^19", Name: "react", Constraint: "^19"},
+					{Position: 3, Raw: "hybrid@1.1.0", Name: "hybrid", Version: "1.1.0", Constraint: "^1"},
+					{Position: 4, Raw: "raw-only-entry"},
 				},
 			},
 		},
@@ -532,7 +538,7 @@ func TestListDependenciesAggregatesActiveManifestDependencies(t *testing.T) {
 				Path:            "go.mod",
 				HasDependencies: &hasDependencies,
 				Dependencies: []UploadDependencyParams{
-					{Position: 0, Raw: "react@19.1.0", Name: "react", Version: "19.1.0"},
+					{Position: 0, Raw: "react ^18", Name: "react", Constraint: "^18"},
 				},
 			},
 		},
@@ -569,18 +575,39 @@ func TestListDependenciesAggregatesActiveManifestDependencies(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []DependencyListItem{
 		{
-			Raw:               "react@19.1.0",
 			Name:              "react",
-			Version:           "19.1.0",
+			OccurrenceCount:   5,
 			RepositoryCount:   2,
-			ManifestFileCount: 3,
+			ManifestFileCount: 2,
+			LockFileCount:     2,
 		},
 		{
-			Raw:               "internal-lib ^2",
+			Name:              "hybrid",
+			OccurrenceCount:   2,
+			RepositoryCount:   1,
+			ManifestFileCount: 2,
+			LockFileCount:     2,
+		},
+		{
 			Name:              "internal-lib",
-			Constraint:        "^2",
+			OccurrenceCount:   1,
 			RepositoryCount:   1,
 			ManifestFileCount: 1,
+			LockFileCount:     0,
+		},
+		{
+			Raw:               "raw-only-entry",
+			OccurrenceCount:   1,
+			RepositoryCount:   1,
+			ManifestFileCount: 0,
+			LockFileCount:     0,
+		},
+		{
+			Raw:               "raw-only-entry",
+			OccurrenceCount:   1,
+			RepositoryCount:   1,
+			ManifestFileCount: 0,
+			LockFileCount:     0,
 		},
 	}, items)
 }

@@ -86,8 +86,8 @@ type ManifestDependencyItem struct {
 type DependencyListItem struct {
 	Raw               string `json:"raw"`
 	Name              string `json:"name"`
-	Version           string `json:"version"`
-	Constraint        string `json:"constraint"`
+	OccurrenceCount   int    `json:"occurrence_count"`
 	RepositoryCount   int    `json:"repository_count"`
 	ManifestFileCount int    `json:"manifest_file_count"`
+	LockFileCount     int    `json:"lock_file_count"`
 }
