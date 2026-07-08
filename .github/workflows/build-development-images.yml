@@ -1,0 +1,134 @@
+name: Build development container images
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag, or commit to build
+        required: true
+        default: main
+        type: string
+      pull_request:
+        description: Pull request number to build (overrides ref)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAMESPACE: ferretsecurity
+
+jobs:
+  prepare:
+    name: Resolve source revision
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.revision.outputs.sha }}
+      tag: ${{ steps.revision.outputs.tag }}
+
+    steps:
+      - name: Resolve requested ref
+        id: source
+        env:
+          PULL_REQUEST: ${{ inputs.pull_request }}
+          REQUESTED_REF: ${{ inputs.ref }}
+        run: |
+          if [[ -n "$PULL_REQUEST" ]]; then
+            if [[ ! "$PULL_REQUEST" =~ ^[0-9]+$ ]]; then
+              echo "Pull request must be a number" >&2
+              exit 1
+            fi
+            echo "ref=refs/pull/$PULL_REQUEST/head" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=$REQUESTED_REF" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out requested revision
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.source.outputs.ref }}
+          persist-credentials: false
+
+      - name: Record immutable revision
+        id: revision
+        run: |
+          sha="$(git rev-parse HEAD)"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "tag=sha-${sha:0:12}" >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Publish ${{ matrix.service }} image
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: api
+            image: deplens-platform-api
+            dockerfile: Dockerfile.api
+          - service: web
+            image: deplens-platform-web
+            dockerfile: apps/web/Dockerfile
+
+    steps:
+      - name: Check out immutable revision
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:${{ needs.prepare.outputs.tag }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          provenance: mode=min
+          sbom: true
+
+      - name: Add image to workflow summary
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: echo "- \`$IMAGE:$TAG\`" >> "$GITHUB_STEP_SUMMARY"
+
+  usage:
+    name: Write Compose usage
+    needs:
+      - prepare
+      - publish
+    if: ${{ always() && needs.publish.result == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Add Compose configuration to workflow summary
+        env:
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          {
+            echo "## Docker Compose"
+            echo
+            echo '```env'
+            echo "DEPLENS_VERSION=$TAG"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
