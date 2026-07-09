@@ -5,7 +5,7 @@ import { env } from "./env";
 import type {
   APITokenMetadata,
   DependencyListItem,
-  RepositoryListItem,
+  RepositoryListResponse,
   RepositoryManifestItem,
   ScanListItem,
   ScanManifestItem
@@ -16,10 +16,35 @@ async function cookieHeaders() {
   return cookieHeader ? { cookie: cookieHeader } : undefined;
 }
 
-export async function listRepositoriesServer() {
-  return serverApiFetch<RepositoryListItem[]>(`${env.API_INTERNAL_BASE_URL}/api/v1/repositories`, {
+type ListRepositoriesParams = {
+  q?: string;
+  page?: number;
+  page_size?: number;
+};
+
+export async function listRepositoriesServer(params: ListRepositoriesParams = {}) {
+  const searchParams = new URLSearchParams();
+  if (params.q) {
+    searchParams.set("q", params.q);
+  }
+  if (params.page) {
+    searchParams.set("page", String(params.page));
+  }
+  if (params.page_size) {
+    searchParams.set("page_size", String(params.page_size));
+  }
+
+  const query = searchParams.toString();
+  const url = `${env.API_INTERNAL_BASE_URL}/api/v1/repositories${query ? `?${query}` : ""}`;
+
+  return serverApiFetch<RepositoryListResponse>(url, {
     headers: await cookieHeaders()
   });
+}
+
+export async function listRepositoryOptionsServer() {
+  const response = await listRepositoriesServer({ page: 1, page_size: 100 });
+  return response.items;
 }
 
 export async function listRepositoryManifestsServer(repositoryId: string) {

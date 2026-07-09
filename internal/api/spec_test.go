@@ -109,7 +109,12 @@ func TestOpenAPISpecDoesNotExposeRepositorySlugContract(t *testing.T) {
 	require.Equal(t, "uuid", doc.Components.Schemas["ScanSummary"].Properties["repository_id"].Format)
 	require.Equal(t, "#/components/schemas/ScanSummary", doc.Paths["/api/v1/scans/{scan_id}"].Get.Responses["200"].Content["application/json"].Schema.Ref)
 	require.Equal(t, "#/components/schemas/ScanSummary", doc.Paths["/api/v1/scans"].Get.Responses["200"].Content["application/json"].Schema.Items.Ref)
-	require.Equal(t, "#/components/schemas/RepositorySummary", doc.Paths["/api/v1/repositories"].Get.Responses["200"].Content["application/json"].Schema.Items.Ref)
+	require.Equal(t, "#/components/schemas/RepositoryListResponse", doc.Paths["/api/v1/repositories"].Get.Responses["200"].Content["application/json"].Schema.Ref)
+	require.Equal(t, []string{"q", "page", "page_size"}, []string{
+		doc.Paths["/api/v1/repositories"].Get.Parameters[0].Name,
+		doc.Paths["/api/v1/repositories"].Get.Parameters[1].Name,
+		doc.Paths["/api/v1/repositories"].Get.Parameters[2].Name,
+	})
 
 	rawHeaderNames := []string{
 		"X-Deplens-Repository-Name",

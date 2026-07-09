@@ -402,8 +402,9 @@ func TestListRepositoryManifestsReturnsLifecycleRowsForTenantRepository(t *testi
 	})
 	require.NoError(t, err)
 
-	repositories, err := ScanStore{DB: db}.ListRepositories(ctx, tenantID)
+	repositoryPage, err := ScanStore{DB: db}.ListRepositories(ctx, RepositoryListFilter{TenantID: tenantID})
 	require.NoError(t, err)
+	repositories := repositoryPage.Items
 	require.Len(t, repositories, 1)
 
 	items, err := ScanStore{DB: db}.ListRepositoryManifests(ctx, tenantID, repositories[0].ID)
@@ -420,6 +421,80 @@ func TestListRepositoryManifestsReturnsLifecycleRowsForTenantRepository(t *testi
 	require.False(t, items[1].IsActive)
 	require.NotNil(t, items[1].DisappearedAt)
 	require.Equal(t, secondScanTime, items[1].DisappearedAt.UTC())
+}
+
+func TestListRepositoriesSearchesAndPaginatesTenantRepositories(t *testing.T) {
+	ctx := context.Background()
+	db, databaseURL := openTestDatabase(t)
+	require.NoError(t, Migrate(databaseURL))
+
+	store := Store{DB: db}
+	tenantID := mustCreateTenant(t, ctx, db)
+	otherTenantID := mustCreateTenantWithSlug(t, ctx, db, "repository-list-other-tenant")
+
+	createRepositoryScan(t, ctx, store, tenantID, "Alpha API", "https://example.com/alpha-api.git", "commit-alpha")
+	createRepositoryScan(t, ctx, store, tenantID, "Beta Worker", "https://git.example.com/workers/beta.git", "commit-beta")
+	createRepositoryScan(t, ctx, store, tenantID, "Gamma UI", "https://example.com/frontend/gamma.git", "commit-gamma")
+	createRepositoryScan(t, ctx, store, otherTenantID, "Alpha Other", "https://example.com/alpha-other.git", "commit-other")
+
+	page, err := ScanStore{DB: db}.ListRepositories(ctx, RepositoryListFilter{
+		TenantID: tenantID,
+		Page:     1,
+		PageSize: 2,
+	})
+	require.NoError(t, err)
+	require.Len(t, page.Items, 2)
+	require.Equal(t, 3, page.Pagination.Total)
+	require.Equal(t, 2, page.Pagination.TotalPages)
+	require.False(t, page.Pagination.HasPrevious)
+	require.True(t, page.Pagination.HasNext)
+	require.Equal(t, "Alpha API", page.Items[0].Name)
+	require.Equal(t, "Beta Worker", page.Items[1].Name)
+
+	secondPage, err := ScanStore{DB: db}.ListRepositories(ctx, RepositoryListFilter{
+		TenantID: tenantID,
+		Page:     2,
+		PageSize: 2,
+	})
+	require.NoError(t, err)
+	require.Len(t, secondPage.Items, 1)
+	require.Equal(t, "Gamma UI", secondPage.Items[0].Name)
+	require.True(t, secondPage.Pagination.HasPrevious)
+	require.False(t, secondPage.Pagination.HasNext)
+
+	searchPage, err := ScanStore{DB: db}.ListRepositories(ctx, RepositoryListFilter{
+		TenantID: tenantID,
+		Query:    "WORKERS",
+		Page:     1,
+		PageSize: 25,
+	})
+	require.NoError(t, err)
+	require.Len(t, searchPage.Items, 1)
+	require.Equal(t, "Beta Worker", searchPage.Items[0].Name)
+	require.Equal(t, "WORKERS", searchPage.Filters.Query)
+}
+
+func TestListRepositoriesEscapesSearchWildcards(t *testing.T) {
+	ctx := context.Background()
+	db, databaseURL := openTestDatabase(t)
+	require.NoError(t, Migrate(databaseURL))
+
+	store := Store{DB: db}
+	tenantID := mustCreateTenant(t, ctx, db)
+
+	createRepositoryScan(t, ctx, store, tenantID, "Regular Repo", "https://example.com/regular.git", "commit-regular")
+	createRepositoryScan(t, ctx, store, tenantID, "Literal 100% Repo", "https://example.com/literal.git", "commit-literal")
+
+	page, err := ScanStore{DB: db}.ListRepositories(ctx, RepositoryListFilter{
+		TenantID: tenantID,
+		Query:    "%",
+		Page:     1,
+		PageSize: 25,
+	})
+	require.NoError(t, err)
+	require.Len(t, page.Items, 1)
+	require.Equal(t, "Literal 100% Repo", page.Items[0].Name)
+	require.Equal(t, 1, page.Pagination.Total)
 }
 
 func TestListDependenciesAggregatesActiveManifestDependencies(t *testing.T) {
@@ -732,6 +807,30 @@ func mustCreateScanWithDetails(t *testing.T, ctx context.Context, store Store, t
 	}
 
 	return scanID
+}
+
+func createRepositoryScan(t *testing.T, ctx context.Context, store Store, tenantID string, name string, url string, commitSHA string) {
+	t.Helper()
+
+	_, err := store.CreateScan(ctx, UploadScanParams{
+		TenantID:       tenantID,
+		RepositoryName: name,
+		URL:            url,
+		DefaultBranch:  "main",
+		ArtifactKey:    "artifacts/" + commitSHA + ".json",
+		ArtifactSHA256: "sha-" + commitSHA,
+		SchemaVersion:  "v1alpha1",
+		RootPath:       ".",
+		CommitSHA:      commitSHA,
+		SourceRef:      "refs/heads/main",
+		ScannedAt:      time.Date(2026, 5, 6, 8, 0, 0, 0, time.UTC),
+		Labels:         map[string]string{},
+		Annotation:     "",
+		Manifests: []UploadManifestParams{
+			{Position: 0, Type: "npm", Path: "package-lock.json"},
+		},
+	})
+	require.NoError(t, err)
 }
 
 func mustCreateTenant(t *testing.T, ctx context.Context, db *pgxpool.Pool) string {

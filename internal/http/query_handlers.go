@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/alexedwards/scs/v2"
@@ -24,7 +27,7 @@ type QueryService interface {
 }
 
 type QueryStore interface {
-	ListRepositories(ctx context.Context, tenantID string) ([]store.RepositoryListItem, error)
+	ListRepositories(ctx context.Context, filter store.RepositoryListFilter) (store.RepositoryListPage, error)
 	ListRepositoryManifests(ctx context.Context, tenantID string, repositoryID string) ([]store.RepositoryManifestItem, error)
 	ListDependencies(ctx context.Context, tenantID string) ([]store.DependencyListItem, error)
 	ListScans(ctx context.Context, filter store.ScanFilter) ([]store.ScanListItem, error)
@@ -68,7 +71,12 @@ func (s ProductionQueryService) ListRepositories(r *http.Request, token string) 
 	if err != nil {
 		return nil, errUnauthorized
 	}
-	return s.Reads.ListRepositories(r.Context(), tenantID)
+
+	filter, err := repositoryListFilterFromRequest(r, tenantID)
+	if err != nil {
+		return nil, newBadRequestError(err)
+	}
+	return s.Reads.ListRepositories(r.Context(), filter)
 }
 
 func (s ProductionQueryService) ListRepositoryManifests(r *http.Request, token string) (any, error) {
@@ -266,4 +274,44 @@ func writeJSONResult(w http.ResponseWriter, r *http.Request, fn func(*http.Reque
 
 func parseTime(value string) (time.Time, error) {
 	return time.Parse(time.RFC3339, value)
+}
+
+func repositoryListFilterFromRequest(r *http.Request, tenantID string) (store.RepositoryListFilter, error) {
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	if len(query) > 200 {
+		return store.RepositoryListFilter{}, fmt.Errorf("q must be at most 200 characters")
+	}
+
+	page, err := parsePositiveIntQuery(r, "page", 1)
+	if err != nil {
+		return store.RepositoryListFilter{}, err
+	}
+
+	pageSize, err := parsePositiveIntQuery(r, "page_size", store.DefaultRepositoryPageSize)
+	if err != nil {
+		return store.RepositoryListFilter{}, err
+	}
+	if pageSize > 100 {
+		return store.RepositoryListFilter{}, fmt.Errorf("page_size must be between 1 and 100")
+	}
+
+	return store.RepositoryListFilter{
+		TenantID: tenantID,
+		Query:    query,
+		Page:     page,
+		PageSize: pageSize,
+	}, nil
+}
+
+func parsePositiveIntQuery(r *http.Request, name string, defaultValue int) (int, error) {
+	raw := r.URL.Query().Get(name)
+	if raw == "" {
+		return defaultValue, nil
+	}
+
+	value, err := strconv.Atoi(raw)
+	if err != nil || value < 1 {
+		return 0, fmt.Errorf("%s must be a positive integer", name)
+	}
+	return value, nil
 }

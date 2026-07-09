@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { listRepositoriesServer, listScansServer } from "@/lib/queries";
+import { listRepositoryOptionsServer, listScansServer } from "@/lib/queries";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +30,7 @@ export default async function ScansPage({
   }>;
 }) {
   const params = (await searchParams) ?? {};
-  const repositories = await listRepositoriesServer();
+  const repositories = await listRepositoryOptionsServer();
 
   if (repositories.length === 0) {
     return (

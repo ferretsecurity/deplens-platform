@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 
-import { listRepositoriesServer, listRepositoryManifestsServer } from "@/lib/queries";
+import { listRepositoryOptionsServer, listRepositoryManifestsServer } from "@/lib/queries";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -18,7 +18,7 @@ export default async function RepositoryManifestsPage({
 }) {
   const { repositoryId } = await params;
   const [repositories, manifests] = await Promise.all([
-    listRepositoriesServer(),
+    listRepositoryOptionsServer(),
     listRepositoryManifestsServer(repositoryId)
   ]);
   const repository = repositories.find((item) => item.id === repositoryId);
