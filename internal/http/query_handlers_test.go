@@ -68,6 +68,9 @@ func TestListRepositoriesReturnsRepositoryID(t *testing.T) {
 	require.NotContains(t, rr.Body.String(), "project_slug")
 	require.NotContains(t, rr.Body.String(), `"slug"`)
 	require.Contains(t, rr.Body.String(), `"id":"repo-123"`)
+	require.Contains(t, rr.Body.String(), `"items"`)
+	require.Contains(t, rr.Body.String(), `"pagination"`)
+	require.Contains(t, rr.Body.String(), `"page_size":25`)
 }
 
 func TestListRepositoriesAcceptsSessionAuth(t *testing.T) {
@@ -81,6 +84,53 @@ func TestListRepositoriesAcceptsSessionAuth(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.Contains(t, rr.Body.String(), `"id":"repo-123"`)
+}
+
+func TestListRepositoriesParsesSearchAndPagination(t *testing.T) {
+	fakeStore := &fakeQueryStore{}
+	handler := newTestQueryRouterWithStore(t, fakeStore)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/repositories?q=%20Repo%20&page=2&page_size=10", nil)
+	req.Header.Set("Authorization", "Bearer bootstrap-token")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	require.Equal(t, store.RepositoryListFilter{
+		TenantID: "tenant-1",
+		Query:    "Repo",
+		Page:     2,
+		PageSize: 10,
+	}, fakeStore.listRepositoriesFilter)
+}
+
+func TestListRepositoriesRejectsInvalidPaginationBeforeStore(t *testing.T) {
+	fakeStore := &fakeQueryStore{}
+	handler := newTestQueryRouterWithStore(t, fakeStore)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/repositories?page=0", nil)
+	req.Header.Set("Authorization", "Bearer bootstrap-token")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+	require.Zero(t, fakeStore.listRepositoriesCalls)
+}
+
+func TestListRepositoriesRejectsOversizedSearchBeforeStore(t *testing.T) {
+	fakeStore := &fakeQueryStore{}
+	handler := newTestQueryRouterWithStore(t, fakeStore)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/repositories?q="+strings.Repeat("a", 201), nil)
+	req.Header.Set("Authorization", "Bearer bootstrap-token")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+	require.Zero(t, fakeStore.listRepositoriesCalls)
 }
 
 func TestListRepositoryManifestsReturnsItems(t *testing.T) {
@@ -194,20 +244,44 @@ func (fakeTokenLookup) FindToken(_ context.Context, tokenHash string) (string, [
 }
 
 type fakeQueryStore struct {
+	listRepositoriesCalls        int
+	listRepositoriesFilter       store.RepositoryListFilter
 	listScansCalls               int
 	listRepositoryManifestsCalls int
 }
 
-func (*fakeQueryStore) ListRepositories(_ context.Context, tenantID string) ([]store.RepositoryListItem, error) {
-	if tenantID != "tenant-1" {
-		return nil, errUnauthorized
+func (f *fakeQueryStore) ListRepositories(_ context.Context, filter store.RepositoryListFilter) (store.RepositoryListPage, error) {
+	f.listRepositoriesCalls++
+	f.listRepositoriesFilter = filter
+	if filter.TenantID != "tenant-1" {
+		return store.RepositoryListPage{}, errUnauthorized
 	}
-	return []store.RepositoryListItem{{
+	items := []store.RepositoryListItem{{
 		ID:            "repo-123",
 		Name:          "Repo",
 		URL:           "https://example.invalid/repo.git",
 		DefaultBranch: "main",
-	}}, nil
+	}}
+	pageSize := filter.PageSize
+	if pageSize == 0 {
+		pageSize = store.DefaultRepositoryPageSize
+	}
+	page := filter.Page
+	if page == 0 {
+		page = 1
+	}
+	return store.RepositoryListPage{
+		Items: items,
+		Pagination: store.PaginationMetadata{
+			Page:        page,
+			PageSize:    pageSize,
+			Total:       len(items),
+			TotalPages:  1,
+			HasPrevious: false,
+			HasNext:     false,
+		},
+		Filters: store.RepositoryFilters{Query: filter.Query},
+	}, nil
 }
 
 func (f *fakeQueryStore) ListScans(_ context.Context, filter store.ScanFilter) ([]store.ScanListItem, error) {

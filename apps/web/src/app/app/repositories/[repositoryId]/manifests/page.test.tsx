@@ -4,18 +4,18 @@ import { describe, expect, it, vi } from "vitest";
 import RepositoryManifestsPage from "./page";
 
 const mocks = vi.hoisted(() => ({
-  listRepositoriesServer: vi.fn(),
+  listRepositoryOptionsServer: vi.fn(),
   listRepositoryManifestsServer: vi.fn()
 }));
 
 vi.mock("@/lib/queries", () => ({
-  listRepositoriesServer: mocks.listRepositoriesServer,
+  listRepositoryOptionsServer: mocks.listRepositoryOptionsServer,
   listRepositoryManifestsServer: mocks.listRepositoryManifestsServer
 }));
 
 describe("RepositoryManifestsPage", () => {
   it("renders manifest lifecycle rows for the repository", async () => {
-    mocks.listRepositoriesServer.mockResolvedValue([
+    mocks.listRepositoryOptionsServer.mockResolvedValue([
       {
         id: "repo-1",
         name: "Repo One",
@@ -61,7 +61,7 @@ describe("RepositoryManifestsPage", () => {
   });
 
   it("renders an empty state when the repository has no manifest files", async () => {
-    mocks.listRepositoriesServer.mockResolvedValue([
+    mocks.listRepositoryOptionsServer.mockResolvedValue([
       {
         id: "repo-1",
         name: "Repo One",

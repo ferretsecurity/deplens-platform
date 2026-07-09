@@ -3,10 +3,14 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"math"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+const DefaultRepositoryPageSize = 25
 
 type ScanListItem struct {
 	ID              string            `json:"id"`
@@ -24,6 +28,32 @@ type RepositoryListItem struct {
 	Name          string `json:"name"`
 	URL           string `json:"url"`
 	DefaultBranch string `json:"default_branch"`
+}
+
+type RepositoryListFilter struct {
+	TenantID string
+	Query    string
+	Page     int
+	PageSize int
+}
+
+type RepositoryListPage struct {
+	Items      []RepositoryListItem `json:"items"`
+	Pagination PaginationMetadata   `json:"pagination"`
+	Filters    RepositoryFilters    `json:"filters"`
+}
+
+type PaginationMetadata struct {
+	Page        int  `json:"page"`
+	PageSize    int  `json:"page_size"`
+	Total       int  `json:"total"`
+	TotalPages  int  `json:"total_pages"`
+	HasPrevious bool `json:"has_previous"`
+	HasNext     bool `json:"has_next"`
+}
+
+type RepositoryFilters struct {
+	Query string `json:"q"`
 }
 
 type RepositoryManifestItem struct {
@@ -47,27 +77,101 @@ type ScanStore struct {
 	DB *pgxpool.Pool
 }
 
-func (s ScanStore) ListRepositories(ctx context.Context, tenantID string) ([]RepositoryListItem, error) {
+func (s ScanStore) ListRepositories(ctx context.Context, filter RepositoryListFilter) (RepositoryListPage, error) {
+	filter = normalizeRepositoryListFilter(filter)
+	offset := (filter.Page - 1) * filter.PageSize
+	pattern := "%" + escapeLikePattern(filter.Query) + "%"
+
 	rows, err := s.DB.Query(ctx, `
-		select r.id, r.name, r.url, r.default_branch
-		from repositories r
-		where r.tenant_id = $1
-		order by r.name asc, r.id asc
-	`, tenantID)
+		with filtered as (
+			select r.id, r.name, r.url, r.default_branch
+			from repositories r
+			where r.tenant_id = $1
+			  and (
+				$2 = ''
+				or r.name ilike $3 escape '\'
+				or r.url ilike $3 escape '\'
+			  )
+		),
+		counted as (
+			select count(*) as total
+			from filtered
+		)
+		select f.id, f.name, f.url, f.default_branch, c.total
+		from filtered f
+		cross join counted c
+		order by lower(f.name) asc, f.id asc
+		limit $4 offset $5
+	`, filter.TenantID, filter.Query, pattern, filter.PageSize, offset)
 	if err != nil {
-		return nil, err
+		return RepositoryListPage{}, err
 	}
 	defer rows.Close()
 
 	items := make([]RepositoryListItem, 0)
+	total := 0
 	for rows.Next() {
 		var item RepositoryListItem
-		if err := rows.Scan(&item.ID, &item.Name, &item.URL, &item.DefaultBranch); err != nil {
-			return nil, err
+		if err := rows.Scan(&item.ID, &item.Name, &item.URL, &item.DefaultBranch, &total); err != nil {
+			return RepositoryListPage{}, err
 		}
 		items = append(items, item)
 	}
-	return items, rows.Err()
+	if err := rows.Err(); err != nil {
+		return RepositoryListPage{}, err
+	}
+	if len(items) == 0 {
+		if err := s.DB.QueryRow(ctx, `
+			select count(*)
+			from repositories r
+			where r.tenant_id = $1
+			  and (
+				$2 = ''
+				or r.name ilike $3 escape '\'
+				or r.url ilike $3 escape '\'
+			  )
+		`, filter.TenantID, filter.Query, pattern).Scan(&total); err != nil {
+			return RepositoryListPage{}, err
+		}
+	}
+
+	totalPages := 0
+	if total > 0 {
+		totalPages = int(math.Ceil(float64(total) / float64(filter.PageSize)))
+	}
+
+	return RepositoryListPage{
+		Items: items,
+		Pagination: PaginationMetadata{
+			Page:        filter.Page,
+			PageSize:    filter.PageSize,
+			Total:       total,
+			TotalPages:  totalPages,
+			HasPrevious: filter.Page > 1,
+			HasNext:     totalPages > filter.Page,
+		},
+		Filters: RepositoryFilters{
+			Query: filter.Query,
+		},
+	}, nil
+}
+
+func normalizeRepositoryListFilter(filter RepositoryListFilter) RepositoryListFilter {
+	filter.Query = strings.TrimSpace(filter.Query)
+	if filter.Page < 1 {
+		filter.Page = 1
+	}
+	if filter.PageSize < 1 {
+		filter.PageSize = DefaultRepositoryPageSize
+	}
+	return filter
+}
+
+func escapeLikePattern(value string) string {
+	value = strings.ReplaceAll(value, `\`, `\\`)
+	value = strings.ReplaceAll(value, `%`, `\%`)
+	value = strings.ReplaceAll(value, `_`, `\_`)
+	return value
 }
 
 func (s ScanStore) ListRepositoryManifests(ctx context.Context, tenantID string, repositoryID string) ([]RepositoryManifestItem, error) {

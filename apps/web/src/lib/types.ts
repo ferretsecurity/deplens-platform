@@ -19,6 +19,25 @@ export type RepositoryListItem = {
   default_branch: string;
 };
 
+export type PaginationMetadata = {
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+  has_previous: boolean;
+  has_next: boolean;
+};
+
+export type RepositoryListFilters = {
+  q: string;
+};
+
+export type RepositoryListResponse = {
+  items: RepositoryListItem[];
+  pagination: PaginationMetadata;
+  filters: RepositoryListFilters;
+};
+
 export type RepositoryManifestItem = {
   id: string;
   path: string;

@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Repository Pagination and Search Design</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f8fa;
+        --panel: #fbfcfd;
+        --ink: #172033;
+        --muted: #5e697c;
+        --accent: #2459a6;
+        --accent-soft: #e8f0fb;
+        --code-bg: #eef2f7;
+        --border: #cfd7e3;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family:
+          ui-sans-serif,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        line-height: 1.55;
+      }
+
+      main {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 48px 24px 72px;
+      }
+
+      header {
+        margin-bottom: 36px;
+        padding-bottom: 24px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        line-height: 1.2;
+        text-wrap: pretty;
+      }
+
+      h1 {
+        max-width: 820px;
+        font-size: 2.4rem;
+        letter-spacing: 0;
+      }
+
+      h2 {
+        margin-top: 36px;
+        font-size: 1.35rem;
+      }
+
+      h3 {
+        margin-top: 24px;
+        font-size: 1rem;
+      }
+
+      p {
+        max-width: 76ch;
+        margin: 12px 0 0;
+      }
+
+      ul,
+      ol {
+        max-width: 78ch;
+        margin: 12px 0 0;
+        padding-left: 22px;
+      }
+
+      li + li {
+        margin-top: 6px;
+      }
+
+      code {
+        border-radius: 4px;
+        background: var(--code-bg);
+        padding: 0.1rem 0.28rem;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.92em;
+      }
+
+      pre {
+        overflow-x: auto;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--code-bg);
+        padding: 16px;
+        line-height: 1.45;
+      }
+
+      pre code {
+        background: transparent;
+        padding: 0;
+      }
+
+      table {
+        width: 100%;
+        margin-top: 14px;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--border);
+        padding: 10px 12px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: var(--accent-soft);
+        color: var(--ink);
+        font-weight: 650;
+      }
+
+      .summary {
+        margin-top: 18px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--panel);
+        padding: 18px 20px;
+      }
+
+      .meta {
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .decision {
+        margin-top: 18px;
+        border-left: 4px solid var(--accent);
+        background: var(--accent-soft);
+        padding: 14px 16px;
+      }
+
+      .section {
+        margin-top: 28px;
+      }
+
+      .label {
+        display: inline-block;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--panel);
+        padding: 2px 8px;
+        color: var(--muted);
+        font-size: 0.82rem;
+        font-weight: 650;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="label">Design Spec</p>
+        <h1>Repository Pagination and Search</h1>
+        <p class="meta">Date: 2026-07-09</p>
+        <p class="meta">Scope: Backend API, store query contract, OpenAPI schema, and the authenticated Repositories page in <code>apps/web</code>.</p>
+      </header>
+
+      <section class="summary" aria-labelledby="summary">
+        <h2 id="summary">Summary</h2>
+        <p>
+          Introduce repository search and pagination as a backend collection contract, not as client-side filtering over a full result set.
+          The Repositories page should become URL-driven through <code>q</code>, <code>page</code>, and <code>page_size</code> query parameters.
+          The API should return a typed envelope with result items and pagination metadata.
+        </p>
+        <div class="decision">
+          <strong>Recommended solution:</strong>
+          evolve <code>GET /api/v1/repositories</code> into a searchable, paginated endpoint backed by SQL filtering, stable ordering, and a total count.
+        </div>
+        <p>
+          The default UI page size should be <code>25</code> repositories. This keeps the table compact enough for the current product layout,
+          gives users meaningful scan density per page, and avoids making the first authenticated render depend on a large tenant-wide result set.
+        </p>
+      </section>
+
+      <section class="section" aria-labelledby="goals">
+        <h2 id="goals">Goals</h2>
+        <ul>
+          <li>Allow users to find repositories by name or URL from the Repositories page.</li>
+          <li>Prevent large tenants from loading every repository just to render the first screen.</li>
+          <li>Make pagination state shareable and refresh-safe through URL parameters.</li>
+          <li>Create an API response shape that can grow with metadata without breaking consumers again.</li>
+          <li>Keep repository ordering deterministic across page transitions.</li>
+        </ul>
+      </section>
+
+      <section class="section" aria-labelledby="non-goals">
+        <h2 id="non-goals">Non-Goals</h2>
+        <ul>
+          <li>Do not add repository creation, deletion, or edit workflows.</li>
+          <li>Do not introduce client-side data libraries for this page unless later interactivity requires them.</li>
+          <li>Do not add cursor pagination in the first implementation.</li>
+          <li>Do not redesign the app shell or table visual language.</li>
+        </ul>
+      </section>
+
+      <section class="section" aria-labelledby="current-state">
+        <h2 id="current-state">Current State</h2>
+        <p>
+          The Repositories page calls <code>listRepositoriesServer()</code>, which fetches <code>GET /api/v1/repositories</code>.
+          The endpoint currently returns a raw JSON array of <code>RepositoryListItem</code>. The store query returns all repositories
+          for the tenant ordered by <code>r.name asc, r.id asc</code>.
+        </p>
+        <p>
+          The Scans page also depends on the same full repository list for its repository selector and default redirect.
+          This makes the endpoint shape a shared contract, so all consumers need to be updated in the same change.
+        </p>
+      </section>
+
+      <section class="section" aria-labelledby="api-contract">
+        <h2 id="api-contract">API Contract</h2>
+        <h3>Endpoint</h3>
+        <pre><code>GET /api/v1/repositories?q=&amp;page=1&amp;page_size=25</code></pre>
+
+        <h3>Query Parameters</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Default</th>
+              <th>Validation</th>
+              <th>Behavior</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>q</code></td>
+              <td>string</td>
+              <td>empty</td>
+              <td>Trim whitespace. Maximum 200 characters.</td>
+              <td>Case-insensitive search across repository name and URL.</td>
+            </tr>
+            <tr>
+              <td><code>page</code></td>
+              <td>integer</td>
+              <td><code>1</code></td>
+              <td>Must be greater than or equal to <code>1</code>.</td>
+              <td>One-based page number.</td>
+            </tr>
+            <tr>
+              <td><code>page_size</code></td>
+              <td>integer</td>
+              <td><code>25</code></td>
+              <td>Allowed range: <code>1</code> to <code>100</code>.</td>
+              <td>Maximum number of items returned in one response. The Repositories UI uses <code>25</code> by default.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Response</h3>
+        <pre><code>{
+  "items": [
+    {
+      "id": "11111111-1111-1111-1111-111111111111",
+      "name": "deplens-platform",
+      "url": "https://github.com/ferretsecurity/deplens-platform",
+      "default_branch": "main"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "page_size": 25,
+    "total": 73,
+    "total_pages": 3,
+    "has_previous": false,
+    "has_next": true
+  },
+  "filters": {
+    "q": "platform"
+  }
+}</code></pre>
+
+        <h3>Errors</h3>
+        <ul>
+          <li>Invalid <code>page</code>, <code>page_size</code>, or oversized <code>q</code> returns <code>400 Bad Request</code>.</li>
+          <li>Unauthenticated or unauthorized requests keep the existing <code>401 Unauthorized</code> behavior.</li>
+          <li>A page beyond <code>total_pages</code> returns an empty <code>items</code> array with accurate pagination metadata, not an error.</li>
+        </ul>
+      </section>
+
+      <section class="section" aria-labelledby="search-semantics">
+        <h2 id="search-semantics">Search Semantics</h2>
+        <ul>
+          <li>Search is case-insensitive.</li>
+          <li>Search matches repository <code>name</code> and <code>url</code>.</li>
+          <li>The initial implementation should use escaped <code>ILIKE</code> patterns to avoid wildcard abuse through user input.</li>
+          <li>Empty or whitespace-only <code>q</code> is equivalent to no search filter.</li>
+          <li>Default branch search is intentionally excluded at first because users primarily identify repositories by name or origin URL.</li>
+        </ul>
+      </section>
+
+      <section class="section" aria-labelledby="sql-safety">
+        <h2 id="sql-safety">SQL Safety</h2>
+        <p>
+          SQL injection protection should come from parameterized queries through <code>pgx</code>, the same database driver pattern already used
+          in the store layer. The implementation must never concatenate <code>q</code>, <code>page</code>, <code>page_size</code>, <code>limit</code>,
+          <code>offset</code>, or sort fragments into SQL strings.
+        </p>
+        <p>
+          This is enough for SQL injection as long as every user-controlled value is passed as a bind parameter such as <code>$1</code>,
+          <code>$2</code>, and <code>$3</code>. Search needs one additional guard that is not SQL injection protection: escaping
+          <code>%</code>, <code>_</code>, and <code>\</code> before building the <code>ILIKE</code> pattern, so user input cannot accidentally
+          become an unbounded wildcard query.
+        </p>
+        <pre><code>func escapeLikePattern(value string) string {
+    value = strings.ReplaceAll(value, `\`, `\\`)
+    value = strings.ReplaceAll(value, `%`, `\%`)
+    value = strings.ReplaceAll(value, `_`, `\_`)
+    return value
+}
+
+pattern := "%" + escapeLikePattern(query) + "%"
+
+where r.tenant_id = $1
+  and (
+    $2 = ''
+    or r.name ilike $3 escape '\'
+    or r.url ilike $3 escape '\'
+  )</code></pre>
+        <p>
+          <code>page</code> and <code>page_size</code> should be parsed as integers, range-checked, converted into <code>limit</code> and
+          <code>offset</code>, and then passed as bind parameters. The implementation should not support client-provided sort fields in this
+          change, which avoids dynamic <code>ORDER BY</code> SQL entirely.
+        </p>
+      </section>
+
+      <section class="section" aria-labelledby="sorting">
+        <h2 id="sorting">Sorting and Pagination Semantics</h2>
+        <p>
+          Results should use a stable default order of <code>lower(r.name) asc, r.id asc</code>. The <code>id</code> tiebreaker prevents
+          rows with equivalent names from moving between pages.
+        </p>
+        <p>
+          Offset pagination is the right first implementation because the product needs numbered pages, total counts, and straightforward
+          URL state. Cursor pagination can be added later if tenant repository counts become large enough that offset scans are a real bottleneck.
+        </p>
+      </section>
+
+      <section class="section" aria-labelledby="backend-design">
+        <h2 id="backend-design">Backend Design</h2>
+        <h3>Store Types</h3>
+        <pre><code>type RepositoryListFilter struct {
+    TenantID  string
+    Query     string
+    Page      int
+    PageSize  int
+}
+
+type RepositoryListPage struct {
+    Items      []RepositoryListItem `json:"items"`
+    Pagination PaginationMetadata   `json:"pagination"`
+    Filters    RepositoryFilters    `json:"filters"`
+}
+
+type PaginationMetadata struct {
+    Page        int  `json:"page"`
+    PageSize    int  `json:"page_size"`
+    Total       int  `json:"total"`
+    TotalPages  int  `json:"total_pages"`
+    HasPrevious bool `json:"has_previous"`
+    HasNext     bool `json:"has_next"`
+}
+
+type RepositoryFilters struct {
+    Query string `json:"q"`
+}</code></pre>
+
+        <h3>Store Method</h3>
+        <pre><code>ListRepositories(ctx context.Context, filter RepositoryListFilter) (RepositoryListPage, error)</code></pre>
+
+        <h3>SQL Shape</h3>
+        <pre><code>with filtered as (
+  select r.id, r.name, r.url, r.default_branch
+  from repositories r
+  where r.tenant_id = $1
+	    and (
+	      $2 = ''
+	      or r.name ilike $3 escape '\'
+	      or r.url ilike $3 escape '\'
+	    )
+	),
+counted as (
+  select count(*) as total
+  from filtered
+)
+select f.id, f.name, f.url, f.default_branch, c.total
+from filtered f
+cross join counted c
+order by lower(f.name) asc, f.id asc
+limit $4 offset $5;</code></pre>
+        <p>
+          The implementation may use two queries instead of the CTE if that is clearer. The important contract is that <code>total</code>
+          counts the filtered result set and that rows use the same filtered scope.
+        </p>
+      </section>
+
+      <section class="section" aria-labelledby="http-handler">
+        <h2 id="http-handler">HTTP Handler</h2>
+        <ul>
+          <li>Authorize the request exactly as the current <code>ListRepositories</code> handler does.</li>
+          <li>Parse and validate <code>q</code>, <code>page</code>, and <code>page_size</code> before calling the store.</li>
+          <li>Normalize <code>q</code> by trimming whitespace.</li>
+          <li>Return the envelope directly from the query service.</li>
+          <li>Keep tenant scoping inside the store filter, not in web-layer code.</li>
+        </ul>
+      </section>
+
+      <section class="section" aria-labelledby="web-ui">
+        <h2 id="web-ui">Web UI</h2>
+        <p>
+          The Repositories page remains a server component. It reads <code>searchParams</code>, calls <code>listRepositoriesServer</code>
+          with normalized parameters, and renders the current result page.
+        </p>
+
+        <h3>URL State</h3>
+        <pre><code>/app/repositories?q=platform&amp;page=2&amp;page_size=25</code></pre>
+
+        <h3>Page Structure</h3>
+        <ul>
+          <li>Header: title and concise description.</li>
+          <li>Search form: single input named <code>q</code>, submit button, hidden <code>page_size</code>, and no hidden <code>page</code> so searches reset to page <code>1</code>.</li>
+          <li>Results summary: show <code>Showing 26-50 of 73 repositories</code> when results exist.</li>
+          <li>Table: same columns as today, populated from <code>items</code>.</li>
+          <li>Pagination controls: previous and next links, plus nearby page links where useful.</li>
+          <li>Empty state: distinguish between no repositories uploaded and no repositories matching the current search.</li>
+        </ul>
+
+        <h3>Search Behavior</h3>
+        <ul>
+          <li>The form submits with method <code>get</code>.</li>
+          <li>Submitting a new search resets <code>page</code> to <code>1</code>.</li>
+          <li>A clear action links to <code>/app/repositories</code> when <code>q</code> is active.</li>
+          <li>Pagination links preserve <code>q</code> and <code>page_size</code>.</li>
+        </ul>
+      </section>
+
+      <section class="section" aria-labelledby="frontend-compatibility">
+        <h2 id="frontend-compatibility">Frontend Compatibility</h2>
+        <p>
+          All current frontend callers of <code>listRepositoriesServer()</code> must be updated as part of this work. The breaking API response
+          shape is acceptable only if the frontend migration happens in the same implementation.
+        </p>
+
+        <h3>Required Frontend Changes</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>File</th>
+              <th>Current Assumption</th>
+              <th>Required Change</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>apps/web/src/lib/types.ts</code></td>
+              <td>Only <code>RepositoryListItem</code> exists.</td>
+              <td>Add <code>RepositoryListResponse</code>, <code>PaginationMetadata</code>, and <code>RepositoryListFilters</code>.</td>
+            </tr>
+            <tr>
+              <td><code>apps/web/src/lib/queries.ts</code></td>
+              <td><code>listRepositoriesServer()</code> returns <code>RepositoryListItem[]</code>.</td>
+              <td>Return <code>RepositoryListResponse</code> and accept optional <code>q</code>, <code>page</code>, and <code>page_size</code> params.</td>
+            </tr>
+            <tr>
+              <td><code>apps/web/src/app/app/repositories/page.tsx</code></td>
+              <td>Maps directly over the returned array.</td>
+              <td>Read <code>searchParams</code>, render <code>response.items</code>, and use <code>response.pagination</code> for result count and page links.</td>
+            </tr>
+            <tr>
+              <td><code>apps/web/src/app/app/scans/page.tsx</code></td>
+              <td>Uses the full array for the repository selector and default repository.</td>
+              <td>Use a selector-specific helper so the page still receives <code>RepositoryListItem[]</code> until a searchable combobox is added.</td>
+            </tr>
+            <tr>
+              <td><code>apps/web/src/app/app/repositories/[repositoryId]/manifests/page.tsx</code></td>
+              <td>Uses the full array to find the active repository display name.</td>
+              <td>Use the selector helper temporarily, or prefer a future <code>GET /api/v1/repositories/{id}</code> detail endpoint.</td>
+            </tr>
+            <tr>
+              <td><code>apps/web/src/app/app/repositories/page.test.tsx</code></td>
+              <td>Mocks <code>listRepositoriesServer()</code> as an array.</td>
+              <td>Mock the response envelope and add assertions for search and pagination UI.</td>
+            </tr>
+            <tr>
+              <td><code>apps/web/src/app/app/scans/page.test.tsx</code> and manifest page tests</td>
+              <td>Expect repository helper data in array form.</td>
+              <td>Update mocks to use the selector helper or the new envelope, depending on each page's final dependency.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Compatibility Helper</h3>
+        <p>
+          The Scans page currently expects <code>listRepositoriesServer()</code> to return an array. The implementation should update that helper
+          to expose the new envelope and add a temporary helper for selector use:
+        </p>
+        <pre><code>listRepositoriesServer(params): Promise&lt;RepositoryListResponse&gt;
+listRepositoryOptionsServer(): Promise&lt;RepositoryListItem[]&gt;</code></pre>
+        <p>
+          <code>listRepositoryOptionsServer()</code> can call <code>GET /api/v1/repositories?page=1&amp;page_size=100</code> for now and return
+          only <code>response.items</code>. This keeps existing selector pages working while making the repository list contract long-term ready.
+          If tenants regularly exceed that selector size, the Scans page and manifest detail page should stop loading repository options and use
+          repository-specific lookup endpoints or a searchable repository combobox backed by the paginated endpoint.
+        </p>
+      </section>
+
+      <section class="section" aria-labelledby="openapi">
+        <h2 id="openapi">OpenAPI</h2>
+        <ul>
+          <li>Add <code>q</code>, <code>page</code>, and <code>page_size</code> query parameters to <code>/api/v1/repositories</code>.</li>
+          <li>Add <code>RepositoryListResponse</code>, <code>PaginationMetadata</code>, and <code>RepositoryListFilters</code> schemas.</li>
+          <li>Change the <code>200</code> response schema from an array to <code>RepositoryListResponse</code>.</li>
+          <li>Update spec tests that currently assert the raw array response.</li>
+        </ul>
+      </section>
+
+      <section class="section" aria-labelledby="compatibility">
+        <h2 id="compatibility">Compatibility</h2>
+        <p>
+          This change breaks consumers that expect <code>GET /api/v1/repositories</code> to return a raw array. Because this API is still compact
+          and internally consumed by the web app, the cleaner long-term move is to update the endpoint in place and update all in-repo callers.
+        </p>
+        <p>
+          If external API compatibility is required before implementation, add a new endpoint such as
+          <code>GET /api/v1/repositories/search</code> for the envelope and keep the existing array endpoint temporarily. That should be treated
+          as a compatibility bridge, not the preferred final design.
+        </p>
+      </section>
+
+      <section class="section" aria-labelledby="performance">
+        <h2 id="performance">Performance</h2>
+        <ul>
+          <li>The baseline implementation is acceptable with the existing tenant-scoped repository table and page size cap.</li>
+          <li>If search latency becomes visible, add a Postgres trigram index for <code>name</code> and <code>url</code>.</li>
+          <li>Keep <code>page_size</code> capped at <code>100</code> to protect response size and count query cost.</li>
+          <li>Do not cache authenticated repository responses globally because they are tenant-scoped.</li>
+        </ul>
+      </section>
+
+      <section class="section" aria-labelledby="testing">
+        <h2 id="testing">Testing</h2>
+        <h3>Store Tests</h3>
+        <ul>
+          <li>Returns the first page with the expected <code>total</code> and <code>total_pages</code>.</li>
+          <li>Filters repositories by case-insensitive name match.</li>
+          <li>Filters repositories by case-insensitive URL match.</li>
+          <li>Does not leak repositories from another tenant into results or counts.</li>
+          <li>Uses deterministic ordering when names collide.</li>
+        </ul>
+
+        <h3>HTTP Tests</h3>
+        <ul>
+          <li>Parses valid pagination and search query parameters.</li>
+          <li>Rejects invalid <code>page</code>, <code>page_size</code>, and oversized <code>q</code>.</li>
+          <li>Returns the new response envelope.</li>
+          <li>Preserves authorization behavior.</li>
+        </ul>
+
+        <h3>Frontend Tests</h3>
+        <ul>
+          <li>Renders repository rows from <code>items</code>.</li>
+          <li>Renders the search input with the active query.</li>
+          <li>Builds previous and next links that preserve search parameters.</li>
+          <li>Shows the no-upload empty state when <code>total</code> is <code>0</code> and <code>q</code> is empty.</li>
+          <li>Shows the no-match empty state when <code>total</code> is <code>0</code> and <code>q</code> is present.</li>
+        </ul>
+
+        <h3>OpenAPI Tests</h3>
+        <ul>
+          <li>Asserts the repository list response references <code>RepositoryListResponse</code>.</li>
+          <li>Asserts query parameters include <code>q</code>, <code>page</code>, and <code>page_size</code>.</li>
+        </ul>
+      </section>
+
+      <section class="section" aria-labelledby="rollout">
+        <h2 id="rollout">Implementation Order</h2>
+        <ol>
+          <li>Add store filter, pagination metadata types, and paginated repository query.</li>
+          <li>Update the HTTP query interface, handler parsing, validation, and tests.</li>
+          <li>Update OpenAPI schemas and spec tests.</li>
+          <li>Update <code>apps/web/src/lib/types.ts</code> and <code>apps/web/src/lib/queries.ts</code>.</li>
+          <li>Update the Repositories page to render search, result count, empty states, and pagination links.</li>
+          <li>Update the Scans page and repository manifest page consumers through a compatibility helper or endpoint-specific lookup follow-up.</li>
+          <li>Run Go, API spec, and web tests.</li>
+        </ol>
+      </section>
+
+      <section class="section" aria-labelledby="acceptance">
+        <h2 id="acceptance">Acceptance Criteria</h2>
+        <ul>
+          <li><code>/app/repositories</code> loads the first page of repositories without fetching the entire tenant repository set.</li>
+          <li><code>/app/repositories?q=repo</code> shows only matching repositories and keeps the query visible in the search input.</li>
+          <li>Pagination controls preserve active search state.</li>
+          <li>The API returns <code>items</code>, <code>pagination</code>, and <code>filters</code> for repository lists.</li>
+          <li>Invalid pagination input returns <code>400 Bad Request</code>.</li>
+          <li>The Scans page still renders after the repository API response shape changes.</li>
+          <li>The repository manifest page still renders after the repository API response shape changes.</li>
+          <li>Store, HTTP, OpenAPI, and frontend tests cover the new contract.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>
