@@ -224,13 +224,13 @@ func newTestQueryRouter(t *testing.T) http.Handler {
 
 func newTestQueryRouterWithStore(t *testing.T, reads QueryStore) http.Handler {
 	t.Helper()
-	service := NewProductionQueryService(fakeTokenLookup{}, reads, nil)
+	service := NewProductionQueryService(fakeTokenLookup{}, reads, nil, nil)
 	return NewQueryRouter(service)
 }
 
 func newTestQueryRouterWithSessions(t *testing.T, sessions *scs.SessionManager) http.Handler {
 	t.Helper()
-	service := NewProductionQueryService(fakeTokenLookup{}, &fakeQueryStore{}, sessions)
+	service := NewProductionQueryService(fakeTokenLookup{}, &fakeQueryStore{}, sessions, nil)
 	return NewQueryRouter(service)
 }
 
@@ -248,6 +248,13 @@ type fakeQueryStore struct {
 	listRepositoriesFilter       store.RepositoryListFilter
 	listScansCalls               int
 	listRepositoryManifestsCalls int
+}
+
+func (*fakeQueryStore) GetScanArtifactKey(_ context.Context, tenantID string, scanID string) (string, error) {
+	if tenantID != "tenant-1" || scanID != "11111111-1111-1111-1111-111111111111" {
+		return "", errUnauthorized
+	}
+	return "artifact-key", nil
 }
 
 func (f *fakeQueryStore) ListRepositories(_ context.Context, filter store.RepositoryListFilter) (store.RepositoryListPage, error) {

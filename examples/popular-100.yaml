@@ -1,0 +1,114 @@
+results_dir: ../var/popular-100/results
+temp_dir: ../var/popular-100/checkouts
+workers: 6
+timeout: 30m
+min_free_bytes: 10737418240
+connections:
+  - name: popular-github
+    provider: github
+    server_url: https://github.com
+    token_env: GITHUB_TOKEN
+    include:
+      repositories:
+        - morluto/rea
+        - openclaw/openclaw
+        - affaan-m/ECC
+        - deepseek-ai/deepseek-harness
+        - NousResearch/hermes-agent
+        - torvalds/linux
+        - react/react
+        - anomalyco/opencode
+        - vuejs/vue
+        - n8n-io/n8n
+        - yt-dlp/yt-dlp
+        - tensorflow/tensorflow
+        - firecrawl/firecrawl
+        - ultraworkers/claw-code
+        - microsoft/vscode
+        - microsoft/markitdown
+        - Significant-Gravitas/AutoGPT
+        - ollama/ollama
+        - DietrichGebert/ponytail
+        - flutter/flutter
+        - huggingface/transformers
+        - AUTOMATIC1111/stable-diffusion-webui
+        - langgenius/dify
+        - Snailclimb/JavaGuide
+        - open-webui/open-webui
+        - langflow-ai/langflow
+        - clash-verge-rev/clash-verge-rev
+        - Genymobile/scrcpy
+        - farion1231/cc-switch
+        - langchain-ai/langchain
+        - Comfy-Org/ComfyUI
+        - vercel/next.js
+        - iptv-org/iptv
+        - ytdl-org/youtube-dl
+        - Graphify-Labs/graphify
+        - microsoft/PowerToys
+        - golang/go
+        - harry0703/MoneyPrinterTurbo
+        - excalidraw/excalidraw
+        - ggml-org/llama.cpp
+        - openai/codex
+        - kubernetes/kubernetes
+        - rustdesk/rustdesk
+        - shadcn-ui/ui
+        - react/react-native
+        - electron/electron
+        - nodejs/node
+        - rust-lang/rust
+        - browser-use/browser-use
+        - 2dust/v2rayN
+        - TauricResearch/TradingAgents
+        - godotengine/godot
+        - earendil-works/pi
+        - immich-app/immich
+        - mrdoob/three.js
+        - JuliusBrussee/caveman
+        - supabase/supabase
+        - tauri-apps/tauri
+        - stablyai/orca
+        - microsoft/TypeScript
+        - openai/whisper
+        - fatedier/frp
+        - paperclipai/paperclip
+        - axios/axios
+        - thedotmack/claude-mem
+        - denoland/deno
+        - google-gemini/gemini-cli
+        - Panniantong/Agent-Reach
+        - goldbergyoni/nodebestpractices
+        - nexu-io/open-design
+        - microsoft/terminal
+        - pytorch/pytorch
+        - deepseek-ai/DeepSeek-V3
+        - fastapi/fastapi
+        - neovim/neovim
+        - react/create-react-app
+        - ruvnet/RuView
+        - angular/angular
+        - ant-design/ant-design
+        - mui/material-ui
+        - pbakaus/impeccable
+        - microsoft/playwright
+        - karpathy/autoresearch
+        - tailwindlabs/tailwindcss
+        - nvbn/thefuck
+        - debpalash/VoiceStudio
+        - hacksider/Deep-Live-Cam
+        - OpenCut-app/OpenCut
+        - localsend/localsend
+        - NationalSecurityAgency/ghidra
+        - oven-sh/bun
+        - vllm-project/vllm
+        - 3b1b/manim
+        - puppeteer/puppeteer
+        - Stirling-Tools/Stirling-PDF
+        - sherlock-project/sherlock
+        - odysseus-dev/odysseus
+        - iluwatar/java-design-patterns
+        - infiniflow/ragflow
+        - louislam/uptime-kuma
+deplens:
+  executable: ../var/popular-100/bin/deplens

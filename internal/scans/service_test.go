@@ -2,10 +2,12 @@ package scans
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/ferretsecurity/deplens-platform/internal/blob"
 	"github.com/ferretsecurity/deplens-platform/internal/store"
+	"github.com/stretchr/testify/require"
 )
 
 func TestServiceUploadConvertsManifestsAndDependencies(t *testing.T) {
@@ -80,6 +82,25 @@ func TestServiceUploadConvertsManifestsAndDependencies(t *testing.T) {
 	if repo.params.RepositoryName != "Repo" {
 		t.Fatalf("repository name = %q, want Repo", repo.params.RepositoryName)
 	}
+}
+
+func TestServiceUploadRetainsCompleteReportInArtifact(t *testing.T) {
+	report := json.RawMessage(`{"schema_version":1,"root":"/repo","sources":[],"check_runs":[],"findings":[],"future_field":{"kept":true}}`)
+	snapshot, err := SnapshotFromReport(report)
+	require.NoError(t, err)
+	artifacts := blob.NewFileSystemStore(t.TempDir())
+	repository := &captureRepository{}
+	service := Service{Blob: artifacts, Store: repository}
+	_, err = service.Upload(context.Background(), "tenant", UploadRequest{
+		Report: report, SchemaVersion: "v1alpha1", Snapshot: snapshot,
+		Source: SourceInput{ScannedAt: "2026-11-01T12:00:00Z"},
+	})
+	require.NoError(t, err)
+	payload, err := artifacts.Get(context.Background(), repository.params.ArtifactKey)
+	require.NoError(t, err)
+	var stored UploadRequest
+	require.NoError(t, json.Unmarshal(payload, &stored))
+	require.JSONEq(t, string(report), string(stored.Report))
 }
 
 type captureRepository struct {

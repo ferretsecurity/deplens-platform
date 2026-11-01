@@ -32,7 +32,10 @@ func New(cfg config.Config) (*App, error) {
 		return nil, err
 	}
 
-	var blobStore blob.Store
+	var blobStore interface {
+		blob.Store
+		blob.Reader
+	}
 	switch cfg.BlobBackend {
 	case "filesystem":
 		blobStore = blob.NewFileSystemStore(cfg.BlobFilesystemRoot)
@@ -60,7 +63,7 @@ func New(cfg config.Config) (*App, error) {
 	tokenRouter := httpapi.NewTokenRouter(sessionManager, httpapi.NewProductionTokenService(persistence))
 	apiRouter := httpapi.NewServer(
 		uploadService,
-		httpapi.NewProductionQueryService(persistence, store.ScanStore{DB: db}, sessionManager),
+		httpapi.NewProductionQueryService(persistence, store.ScanStore{DB: db}, sessionManager, blobStore),
 	)
 	appHandler := sessionManager.LoadAndSave(routeAuthAndAPI(authRouter, tokenRouter, apiRouter))
 	handler := routeHealthAndApp(httpapi.NewHealthRouter(databaseReadinessChecker{DB: db}), appHandler)

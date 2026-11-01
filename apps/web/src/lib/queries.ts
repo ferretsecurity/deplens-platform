@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 
 import { serverApiFetch } from "./api";
 import { env } from "./env";
+import { parseScannerReportResponse } from "./scanner-report";
 import type {
   APITokenMetadata,
   DependencyListItem,
@@ -92,4 +93,12 @@ export async function listAPITokensServer() {
   return serverApiFetch<APITokenMetadata[]>(`${env.API_INTERNAL_BASE_URL}/api/v1/tokens`, {
     headers: await cookieHeaders()
   });
+}
+
+export async function getScanReportServer(scanId: string) {
+  const response = await serverApiFetch<unknown>(
+    `${env.API_INTERNAL_BASE_URL}/api/v1/scans/${scanId}/report`,
+    { headers: await cookieHeaders() }
+  );
+  return parseScannerReportResponse(response);
 }

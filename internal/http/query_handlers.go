@@ -12,6 +12,7 @@ import (
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/ferretsecurity/deplens-platform/internal/auth"
+	"github.com/ferretsecurity/deplens-platform/internal/blob"
 	"github.com/ferretsecurity/deplens-platform/internal/store"
 	"github.com/google/uuid"
 )
@@ -22,6 +23,7 @@ type QueryService interface {
 	ListDependencies(r *http.Request, token string) (any, error)
 	ListScans(r *http.Request, token string) (any, error)
 	GetScan(r *http.Request, token string) (any, error)
+	GetScanReport(r *http.Request, token string) (any, error)
 	ListScanManifests(r *http.Request, token string) (any, error)
 	UpdateScanMetadata(r *http.Request, token string) error
 }
@@ -32,14 +34,16 @@ type QueryStore interface {
 	ListDependencies(ctx context.Context, tenantID string) ([]store.DependencyListItem, error)
 	ListScans(ctx context.Context, filter store.ScanFilter) ([]store.ScanListItem, error)
 	GetScan(ctx context.Context, tenantID string, scanID string) (store.ScanListItem, error)
+	GetScanArtifactKey(ctx context.Context, tenantID string, scanID string) (string, error)
 	ListScanManifests(ctx context.Context, tenantID string, scanID string) ([]store.ScanManifestItem, error)
 	UpdateScanMetadata(ctx context.Context, tenantID string, scanID string, labels map[string]string, annotation string) error
 }
 
 type ProductionQueryService struct {
-	Lookup   TokenLookup
-	Reads    QueryStore
-	Sessions *scs.SessionManager
+	Lookup    TokenLookup
+	Reads     QueryStore
+	Sessions  *scs.SessionManager
+	Artifacts blob.Reader
 }
 
 type badRequestError struct {
@@ -58,11 +62,12 @@ func newBadRequestError(err error) error {
 	return badRequestError{err: err}
 }
 
-func NewProductionQueryService(lookup TokenLookup, reads QueryStore, sessions *scs.SessionManager) ProductionQueryService {
+func NewProductionQueryService(lookup TokenLookup, reads QueryStore, sessions *scs.SessionManager, artifacts blob.Reader) ProductionQueryService {
 	return ProductionQueryService{
-		Lookup:   lookup,
-		Reads:    reads,
-		Sessions: sessions,
+		Lookup:    lookup,
+		Reads:     reads,
+		Sessions:  sessions,
+		Artifacts: artifacts,
 	}
 }
 
@@ -146,6 +151,32 @@ func (s ProductionQueryService) GetScan(r *http.Request, token string) (any, err
 	return s.Reads.GetScan(r.Context(), tenantID, r.PathValue("scan_id"))
 }
 
+func (s ProductionQueryService) GetScanReport(r *http.Request, token string) (any, error) {
+	tenantID, _, err := s.authorizeRead(r, token)
+	if err != nil {
+		return nil, errUnauthorized
+	}
+	scanID := r.PathValue("scan_id")
+	if _, err := uuid.Parse(scanID); err != nil {
+		return nil, newBadRequestError(err)
+	}
+	key, err := s.Reads.GetScanArtifactKey(r.Context(), tenantID, scanID)
+	if err != nil {
+		return nil, err
+	}
+	payload, err := s.Artifacts.Get(r.Context(), key)
+	if err != nil {
+		return nil, err
+	}
+	var artifact struct {
+		Report json.RawMessage `json:"report"`
+	}
+	if err := json.Unmarshal(payload, &artifact); err != nil {
+		return nil, err
+	}
+	return artifact, nil
+}
+
 func (s ProductionQueryService) ListScanManifests(r *http.Request, token string) (any, error) {
 	tenantID, _, err := s.authorizeRead(r, token)
 	if err != nil {
@@ -180,7 +211,11 @@ func (s ProductionQueryService) UpdateScanMetadata(r *http.Request, token string
 }
 
 func (s ProductionQueryService) authorizeRead(r *http.Request, token string) (tenantID string, role string, err error) {
-	tenantID, role, _, err = s.authorizeWrite(r, token)
+	var scopes []string
+	tenantID, role, scopes, err = s.authorizeWrite(r, token)
+	if err == nil && token != "" && !hasScope(scopes, "scan:read") {
+		return "", "", errUnauthorized
+	}
 	return tenantID, role, err
 }
 
@@ -238,6 +273,9 @@ func NewQueryRouter(service QueryService) http.Handler {
 	})
 	mux.HandleFunc("GET /api/v1/scans/{scan_id}/manifests", func(w http.ResponseWriter, r *http.Request) {
 		writeJSONResult(w, r, service.ListScanManifests)
+	})
+	mux.HandleFunc("GET /api/v1/scans/{scan_id}/report", func(w http.ResponseWriter, r *http.Request) {
+		writeJSONResult(w, r, service.GetScanReport)
 	})
 	mux.HandleFunc("PATCH /api/v1/scans/{scan_id}/metadata", func(w http.ResponseWriter, r *http.Request) {
 		token := auth.BearerToken(r.Header.Get("Authorization"))

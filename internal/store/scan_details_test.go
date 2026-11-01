@@ -202,6 +202,21 @@ func TestListScanManifestsReturnsNestedDependenciesInOrder(t *testing.T) {
 	if !reflect.DeepEqual(items[0].Dependencies[0].Extras, map[string]string{"scope": "ui"}) {
 		t.Fatalf("dependency extras = %#v, want map with scope=ui", items[0].Dependencies[0].Extras)
 	}
+	_, err = db.Exec(ctx, `delete from manifest_dependencies where scan_manifest_id = $1`, items[0].ID)
+	require.NoError(t, err)
+	_, err = db.Exec(ctx, `update scan_manifests set warnings = 'null'::jsonb where id = $1`, items[0].ID)
+	require.NoError(t, err)
+	items, err = readStore.ListScanManifests(ctx, tenantID, scanID)
+	require.NoError(t, err)
+	require.NotNil(t, items[0].Dependencies)
+	require.Empty(t, items[0].Dependencies)
+	require.NotNil(t, items[0].Warnings)
+	require.Empty(t, items[0].Warnings)
+	key, err := readStore.GetScanArtifactKey(ctx, tenantID, scanID)
+	require.NoError(t, err)
+	require.NotEmpty(t, key)
+	_, err = readStore.GetScanArtifactKey(ctx, mustCreateTenantWithSlug(t, ctx, db, "other-tenant"), scanID)
+	require.Error(t, err)
 }
 
 func TestCreateScanTracksManifestLifecycle(t *testing.T) {

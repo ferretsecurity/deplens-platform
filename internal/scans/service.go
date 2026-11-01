@@ -19,6 +19,10 @@ type Service struct {
 }
 
 func (s Service) Upload(ctx context.Context, tenantID string, input UploadRequest) (string, error) {
+	scannedAt, err := time.Parse(time.RFC3339, input.Source.ScannedAt)
+	if err != nil {
+		return "", err
+	}
 	payload, err := json.Marshal(input)
 	if err != nil {
 		return "", err
@@ -29,10 +33,6 @@ func (s Service) Upload(ctx context.Context, tenantID string, input UploadReques
 	}
 
 	summary := BuildSummary(input)
-	scannedAt, err := time.Parse(time.RFC3339, input.Source.ScannedAt)
-	if err != nil {
-		return "", err
-	}
 
 	manifests := make([]store.UploadManifestParams, 0, len(input.Snapshot.Manifests))
 	for manifestIdx, manifest := range input.Snapshot.Manifests {

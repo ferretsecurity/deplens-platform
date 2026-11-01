@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -14,6 +15,13 @@ type FileSystemStore struct {
 
 func NewFileSystemStore(root string) *FileSystemStore {
 	return &FileSystemStore{root: root}
+}
+
+func (s *FileSystemStore) Get(_ context.Context, key string) ([]byte, error) {
+	if !filepath.IsLocal(key) {
+		return nil, fmt.Errorf("invalid artifact key")
+	}
+	return os.ReadFile(filepath.Join(s.root, key))
 }
 
 func (s *FileSystemStore) Put(_ context.Context, payload []byte) (string, string, error) {

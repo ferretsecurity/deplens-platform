@@ -1,6 +1,9 @@
 package scans
 
+import "encoding/json"
+
 type UploadRequest struct {
+	Report        json.RawMessage   `json:"report,omitempty"`
 	SchemaVersion string            `json:"schema_version"`
 	Repository    RepositoryInput   `json:"repository"`
 	Source        SourceInput       `json:"source"`

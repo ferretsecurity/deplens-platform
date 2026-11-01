@@ -14,7 +14,10 @@ In another terminal:
 1. `pnpm install`
 2. `pnpm dev:web`
 
-The web app serves the authenticated product UI at `http://localhost:3000` and talks to the API on `http://localhost:8080`.
+The web app serves the authenticated product UI at `http://localhost:3000`.
+Next.js forwards browser requests under `/auth` and `/api` to the API at
+`http://localhost:8080`, so login and API requests use the web origin.
+Set `API_INTERNAL_BASE_URL` before starting the web app to use another API address.
 
 ## First login
 
@@ -61,7 +64,8 @@ curl -X POST http://localhost:8080/api/v1/scans \
 
 ## Raw deplens upload
 
-The upload API also accepts a raw `deplens -json` payload when repository and source metadata are supplied in headers:
+The upload API accepts native `deplens -json` reports with numeric
+`"schema_version": 1`. Supply repository and source metadata in headers.
 
 ```bash
 deplens -json /path/to/repo > /tmp/deplens.json
@@ -78,6 +82,22 @@ curl -X POST http://localhost:8080/api/v1/scans \
   --data-binary @/tmp/deplens.json
 ```
 
+The API stores the complete native report with the upload metadata. Sources and
+dependencies also appear in the existing manifest and dependency lists. Scan
+details show source analysis states, diagnostics, check runs, and findings.
+The report download includes all native fields, including dependency attributes,
+Maven exclusions, generation results, and fields the UI does not display.
+
+An accepted upload does not mean every source was fully analyzed. Check each
+source's `analysis.extraction` value and diagnostics. `partial`, `failed`, and
+`unsupported` remain distinct from `complete`. For example, dynamic Docker
+interpolation can prevent the scanner from extracting a dependency.
+
+Legacy raw snapshots with `root` and `manifests`, and upload envelopes with
+`"schema_version": "v1alpha1"`, remain supported. An envelope can include a native
+report in `report` instead of a legacy `snapshot`. The API rejects unsupported
+schema versions and malformed reports with HTTP `400`.
+
 ## Read scan manifests
 
 `GET /api/v1/scans/{scan_id}` stays summary-only. Use the manifest detail endpoint when you need nested dependencies:
@@ -86,6 +106,19 @@ curl -X POST http://localhost:8080/api/v1/scans \
 curl -s \
   -H "Authorization: Bearer $TOKEN" \
   "http://localhost:8080/api/v1/scans/$SCAN_ID/manifests" | jq
+```
+
+## Read the native scanner report
+
+`GET /api/v1/scans/{scan_id}/report` returns `{"report": ...}` with the complete
+native report. Legacy uploads return `{"report": null}`. The endpoint uses the
+active tenant from the authenticated session or bearer token. Bearer reads
+require the `scan:read` scope.
+
+```bash
+curl -s \
+  -H "Authorization: Bearer $TOKEN" \
+  "http://localhost:8080/api/v1/scans/$SCAN_ID/report" | jq
 ```
 
 ## Compose deployment

@@ -9,10 +9,14 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
+      description: Bearer reads require scan:read. Uploads require scan:write.
   schemas:
     ScanUploadRequest:
       type: object
-      required: [schema_version, repository, source, snapshot]
+      required: [schema_version, repository, source]
+      anyOf:
+        - required: [snapshot]
+        - required: [report]
       properties:
         schema_version:
           type: string
@@ -29,6 +33,86 @@ components:
           type: string
         snapshot:
           $ref: "#/components/schemas/SnapshotInput"
+        report:
+          $ref: "#/components/schemas/NativeScannerReport"
+          description: Complete native report. When present, its sources supply the inventory snapshot.
+    NativeScannerReport:
+      type: object
+      additionalProperties: true
+      required: [schema_version, root, sources, check_runs, findings]
+      description: >-
+        Complete native scanner JSON. All fields are retained in the scan artifact,
+        including fields without inventory columns or a UI display. An accepted
+        upload can contain partial, failed, or unsupported source extraction.
+      properties:
+        schema_version:
+          type: integer
+          const: 1
+        root:
+          type: string
+          minLength: 1
+        sources:
+          type: [array, "null"]
+          items:
+            $ref: "#/components/schemas/NativeScannerSource"
+        check_runs:
+          type: [array, "null"]
+          items:
+            type: object
+            additionalProperties: true
+        findings:
+          type: [array, "null"]
+          items:
+            type: object
+            additionalProperties: true
+        generation:
+          type: [object, "null"]
+          additionalProperties: true
+    NativeScannerSource:
+      type: object
+      additionalProperties: true
+      required: [detector, path, analysis]
+      properties:
+        detector:
+          type: string
+          minLength: 1
+        path:
+          type: string
+          minLength: 1
+        form:
+          type: string
+        roles:
+          type: [array, "null"]
+          items:
+            type: string
+        analysis:
+          type: object
+          required: [presence, extraction]
+          properties:
+            presence:
+              type: string
+              enum: [unknown, absent, present]
+            extraction:
+              type: string
+              enum: [unsupported, complete, partial, failed]
+        dependencies:
+          type: [array, "null"]
+          items:
+            type: object
+            additionalProperties: true
+        diagnostics:
+          type: [array, "null"]
+          items:
+            type: object
+            additionalProperties: true
+    ScanReportResponse:
+      type: object
+      required: [report]
+      properties:
+        report:
+          oneOf:
+            - $ref: "#/components/schemas/NativeScannerReport"
+            - type: "null"
     RepositoryInput:
       type: object
       required: [name, url, default_branch]
@@ -66,7 +150,10 @@ components:
             type: string
     RawDeplensSnapshot:
       type: object
+      description: Legacy raw snapshot without a schema_version field.
       required: [root, manifests]
+      not:
+        required: [schema_version]
       properties:
         root:
           type: string
@@ -373,6 +460,11 @@ paths:
                   $ref: "#/components/schemas/ScanSummary"
     post:
       summary: Upload a scan snapshot
+      description: >-
+        Accepts native numeric schema version 1, legacy raw snapshots, and
+        v1alpha1 upload envelopes. Raw uploads require the metadata headers below.
+        Native reports are retained in full and projected into the inventory.
+        Unsupported schema versions and malformed reports return HTTP 400.
       parameters:
         - in: header
           name: X-Deplens-Repository-Name
@@ -418,10 +510,15 @@ paths:
             schema:
               oneOf:
                 - $ref: "#/components/schemas/ScanUploadRequest"
+                - $ref: "#/components/schemas/NativeScannerReport"
                 - $ref: "#/components/schemas/RawDeplensSnapshot"
       responses:
         "201":
           description: Created
+        "400":
+          description: Invalid report, unsupported schema version, or missing upload metadata.
+        "401":
+          description: Unauthorized
   /api/v1/scans/{scan_id}:
     get:
       summary: Get a scan by ID
@@ -454,6 +551,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ScanManifestListResponse"
+  /api/v1/scans/{scan_id}/report:
+    get:
+      summary: Get the complete native scanner report
+      description: >-
+        Returns the retained native report for a scan in the authenticated tenant.
+        Legacy uploads return report as null. Accepts a session or a bearer token
+        with scan:read scope.
+      parameters:
+        - in: path
+          name: scan_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Complete native report or null for a legacy upload.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanReportResponse"
+        "400":
+          description: Invalid scan ID.
+        "401":
+          description: Unauthorized
   /api/v1/scans/{scan_id}/metadata:
     patch:
       summary: Update scan labels and annotation

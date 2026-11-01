@@ -27,8 +27,8 @@ describe("api helpers", () => {
   it("throws ApiError for failed responses", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("nope", { status: 401 })));
 
-    await expect(clientApiFetch("/test")).rejects.toMatchObject<ApiError>({
+    await expect(clientApiFetch("/test")).rejects.toMatchObject({
       status: 401
-    });
+    } satisfies Partial<ApiError>);
   });
 });

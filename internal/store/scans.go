@@ -300,6 +300,12 @@ func (s ScanStore) GetScan(ctx context.Context, tenantID string, scanID string) 
 	return item, nil
 }
 
+func (s ScanStore) GetScanArtifactKey(ctx context.Context, tenantID string, scanID string) (string, error) {
+	var key string
+	err := s.DB.QueryRow(ctx, `select artifact_key from scans where tenant_id = $1 and id = $2`, tenantID, scanID).Scan(&key)
+	return key, err
+}
+
 func (s ScanStore) ListScanManifests(ctx context.Context, tenantID string, scanID string) ([]ScanManifestItem, error) {
 	rows, err := s.DB.Query(ctx, `
 		select sm.id, sm.type, m.path, sm.has_dependencies, sm.warnings
@@ -319,12 +325,16 @@ func (s ScanStore) ListScanManifests(ctx context.Context, tenantID string, scanI
 	manifestIndexByID := make(map[string]int)
 	for rows.Next() {
 		var item ScanManifestItem
+		item.Dependencies = make([]ManifestDependencyItem, 0)
 		var warningsJSON []byte
 		if err := rows.Scan(&item.ID, &item.Type, &item.Path, &item.HasDependencies, &warningsJSON); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal(warningsJSON, &item.Warnings); err != nil {
 			return nil, err
+		}
+		if item.Warnings == nil {
+			item.Warnings = []string{}
 		}
 
 		manifestIndexByID[item.ID] = len(items)

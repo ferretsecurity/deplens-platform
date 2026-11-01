@@ -1,16 +1,10 @@
 import Link from "next/link";
 
-import { getScanServer, listScanManifestsServer } from "@/lib/queries";
+import { getScanReportServer, getScanServer, listScanManifestsServer } from "@/lib/queries";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScannerReportCard } from "@/components/scanner-report-card";
 import { Separator } from "@/components/ui/separator";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from "@/components/ui/table";
+import { ScanInventory } from "@/components/scan-inventory";
 
 export default async function ScanDetailPage({
   params
@@ -20,8 +14,11 @@ export default async function ScanDetailPage({
   }>;
 }) {
   const { scanId } = await params;
-  const scan = await getScanServer(scanId);
-  const manifests = await listScanManifestsServer(scanId);
+  const [scan, manifests, report] = await Promise.all([
+    getScanServer(scanId),
+    listScanManifestsServer(scanId),
+    getScanReportServer(scanId)
+  ]);
 
   return (
     <section className="space-y-6">
@@ -48,11 +45,13 @@ export default async function ScanDetailPage({
           <Card key={label} className="border-slate-200/80 bg-white/80 shadow-sm backdrop-blur">
             <CardHeader className="pb-3">
               <CardDescription>{label}</CardDescription>
-              <CardTitle className="text-lg">{value}</CardTitle>
+              <CardTitle className={label === "Commit" ? "break-all font-mono text-sm leading-6" : "text-lg"}>{value}</CardTitle>
             </CardHeader>
           </Card>
         ))}
       </div>
+
+      <ScannerReportCard reportState={report} scanId={scanId} />
 
       <Card className="border-slate-200/80 bg-white/80 shadow-sm backdrop-blur">
         <CardHeader>
@@ -91,55 +90,7 @@ export default async function ScanDetailPage({
         </CardContent>
       </Card>
 
-      <Card className="border-slate-200/80 bg-white/80 shadow-sm backdrop-blur">
-        <CardHeader>
-          <CardTitle>Manifests</CardTitle>
-          <CardDescription>Nested manifest entries and dependency details.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {manifests.items.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-sm text-slate-600">
-              No manifests found for this scan.
-            </div>
-          ) : (
-            manifests.items.map((manifest) => (
-              <div key={manifest.id} className="mb-5 last:mb-0">
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="text-base font-semibold text-slate-950">{manifest.path}</div>
-                  <div className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium uppercase tracking-[0.18em] text-slate-600">
-                    {manifest.type}
-                  </div>
-                </div>
-                <div className="mt-2 text-sm text-slate-600">
-                  {manifest.warnings.length > 0 ? manifest.warnings.join(" · ") : "No warnings"}
-                </div>
-                <div className="mt-4 overflow-hidden rounded-xl border border-slate-200">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Version</TableHead>
-                        <TableHead>Constraint</TableHead>
-                        <TableHead>Source</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {manifest.dependencies.map((dependency) => (
-                        <TableRow key={dependency.id}>
-                          <TableCell className="font-medium">{dependency.name || dependency.raw}</TableCell>
-                          <TableCell>{dependency.version || "n/a"}</TableCell>
-                          <TableCell>{dependency.constraint || "n/a"}</TableCell>
-                          <TableCell>{dependency.source || "n/a"}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
+      <ScanInventory manifests={manifests.items} />
     </section>
   );
 }

@@ -1,0 +1,609 @@
+{
+  "selected_at": "2026-11-01T17:20:26.362812+00:00",
+  "selection": "First 100 curated code projects from the first 200 GitHub repositories sorted by stars; archived repositories and forks excluded. This is not an exact top-100 ranking.",
+  "query": "stars:>20000 archived:false fork:false",
+  "scanner_commit": "41ccbe7787bf46ef594324807f32d9bc8785d3c2",
+  "sweep_commit": "f3d8f9ead0f17322c008b0347717eb5cf6816759",
+  "repositories": [
+    {
+      "repository": "morluto/rea",
+      "stars": 417903,
+      "language": "TypeScript",
+      "url": "https://github.com/morluto/rea"
+    },
+    {
+      "repository": "openclaw/openclaw",
+      "stars": 393628,
+      "language": "TypeScript",
+      "url": "https://github.com/openclaw/openclaw"
+    },
+    {
+      "repository": "affaan-m/ECC",
+      "stars": 294579,
+      "language": "JavaScript",
+      "url": "https://github.com/affaan-m/ECC"
+    },
+    {
+      "repository": "deepseek-ai/deepseek-harness",
+      "stars": 268180,
+      "language": "TypeScript",
+      "url": "https://github.com/deepseek-ai/deepseek-harness"
+    },
+    {
+      "repository": "NousResearch/hermes-agent",
+      "stars": 259418,
+      "language": "Python",
+      "url": "https://github.com/NousResearch/hermes-agent"
+    },
+    {
+      "repository": "torvalds/linux",
+      "stars": 254045,
+      "language": "C",
+      "url": "https://github.com/torvalds/linux"
+    },
+    {
+      "repository": "react/react",
+      "stars": 252072,
+      "language": "JavaScript",
+      "url": "https://github.com/react/react"
+    },
+    {
+      "repository": "anomalyco/opencode",
+      "stars": 223771,
+      "language": "TypeScript",
+      "url": "https://github.com/anomalyco/opencode"
+    },
+    {
+      "repository": "vuejs/vue",
+      "stars": 212495,
+      "language": "TypeScript",
+      "url": "https://github.com/vuejs/vue"
+    },
+    {
+      "repository": "n8n-io/n8n",
+      "stars": 209283,
+      "language": "TypeScript",
+      "url": "https://github.com/n8n-io/n8n"
+    },
+    {
+      "repository": "yt-dlp/yt-dlp",
+      "stars": 204442,
+      "language": "Python",
+      "url": "https://github.com/yt-dlp/yt-dlp"
+    },
+    {
+      "repository": "tensorflow/tensorflow",
+      "stars": 201257,
+      "language": "C++",
+      "url": "https://github.com/tensorflow/tensorflow"
+    },
+    {
+      "repository": "firecrawl/firecrawl",
+      "stars": 197606,
+      "language": "TypeScript",
+      "url": "https://github.com/firecrawl/firecrawl"
+    },
+    {
+      "repository": "ultraworkers/claw-code",
+      "stars": 194993,
+      "language": "Rust",
+      "url": "https://github.com/ultraworkers/claw-code"
+    },
+    {
+      "repository": "microsoft/vscode",
+      "stars": 194453,
+      "language": "TypeScript",
+      "url": "https://github.com/microsoft/vscode"
+    },
+    {
+      "repository": "microsoft/markitdown",
+      "stars": 193368,
+      "language": "Python",
+      "url": "https://github.com/microsoft/markitdown"
+    },
+    {
+      "repository": "Significant-Gravitas/AutoGPT",
+      "stars": 187854,
+      "language": "Python",
+      "url": "https://github.com/Significant-Gravitas/AutoGPT"
+    },
+    {
+      "repository": "ollama/ollama",
+      "stars": 185562,
+      "language": "Go",
+      "url": "https://github.com/ollama/ollama"
+    },
+    {
+      "repository": "DietrichGebert/ponytail",
+      "stars": 181974,
+      "language": "JavaScript",
+      "url": "https://github.com/DietrichGebert/ponytail"
+    },
+    {
+      "repository": "flutter/flutter",
+      "stars": 180918,
+      "language": "Dart",
+      "url": "https://github.com/flutter/flutter"
+    },
+    {
+      "repository": "huggingface/transformers",
+      "stars": 168414,
+      "language": "Python",
+      "url": "https://github.com/huggingface/transformers"
+    },
+    {
+      "repository": "AUTOMATIC1111/stable-diffusion-webui",
+      "stars": 165212,
+      "language": "Python",
+      "url": "https://github.com/AUTOMATIC1111/stable-diffusion-webui"
+    },
+    {
+      "repository": "langgenius/dify",
+      "stars": 160163,
+      "language": "Python",
+      "url": "https://github.com/langgenius/dify"
+    },
+    {
+      "repository": "Snailclimb/JavaGuide",
+      "stars": 159369,
+      "language": "JavaScript",
+      "url": "https://github.com/Snailclimb/JavaGuide"
+    },
+    {
+      "repository": "open-webui/open-webui",
+      "stars": 157463,
+      "language": "Python",
+      "url": "https://github.com/open-webui/open-webui"
+    },
+    {
+      "repository": "langflow-ai/langflow",
+      "stars": 156222,
+      "language": "Python",
+      "url": "https://github.com/langflow-ai/langflow"
+    },
+    {
+      "repository": "clash-verge-rev/clash-verge-rev",
+      "stars": 155532,
+      "language": "Rust",
+      "url": "https://github.com/clash-verge-rev/clash-verge-rev"
+    },
+    {
+      "repository": "Genymobile/scrcpy",
+      "stars": 153747,
+      "language": "C",
+      "url": "https://github.com/Genymobile/scrcpy"
+    },
+    {
+      "repository": "farion1231/cc-switch",
+      "stars": 150848,
+      "language": "Rust",
+      "url": "https://github.com/farion1231/cc-switch"
+    },
+    {
+      "repository": "langchain-ai/langchain",
+      "stars": 148822,
+      "language": "Python",
+      "url": "https://github.com/langchain-ai/langchain"
+    },
+    {
+      "repository": "Comfy-Org/ComfyUI",
+      "stars": 144458,
+      "language": "Python",
+      "url": "https://github.com/Comfy-Org/ComfyUI"
+    },
+    {
+      "repository": "vercel/next.js",
+      "stars": 143465,
+      "language": "JavaScript",
+      "url": "https://github.com/vercel/next.js"
+    },
+    {
+      "repository": "iptv-org/iptv",
+      "stars": 142981,
+      "language": "TypeScript",
+      "url": "https://github.com/iptv-org/iptv"
+    },
+    {
+      "repository": "ytdl-org/youtube-dl",
+      "stars": 141444,
+      "language": "Python",
+      "url": "https://github.com/ytdl-org/youtube-dl"
+    },
+    {
+      "repository": "Graphify-Labs/graphify",
+      "stars": 140412,
+      "language": "Python",
+      "url": "https://github.com/Graphify-Labs/graphify"
+    },
+    {
+      "repository": "microsoft/PowerToys",
+      "stars": 140386,
+      "language": "C",
+      "url": "https://github.com/microsoft/PowerToys"
+    },
+    {
+      "repository": "golang/go",
+      "stars": 139724,
+      "language": "Go",
+      "url": "https://github.com/golang/go"
+    },
+    {
+      "repository": "harry0703/MoneyPrinterTurbo",
+      "stars": 137118,
+      "language": "Python",
+      "url": "https://github.com/harry0703/MoneyPrinterTurbo"
+    },
+    {
+      "repository": "excalidraw/excalidraw",
+      "stars": 134969,
+      "language": "TypeScript",
+      "url": "https://github.com/excalidraw/excalidraw"
+    },
+    {
+      "repository": "ggml-org/llama.cpp",
+      "stars": 133061,
+      "language": "C++",
+      "url": "https://github.com/ggml-org/llama.cpp"
+    },
+    {
+      "repository": "openai/codex",
+      "stars": 132696,
+      "language": "Rust",
+      "url": "https://github.com/openai/codex"
+    },
+    {
+      "repository": "kubernetes/kubernetes",
+      "stars": 128816,
+      "language": "Go",
+      "url": "https://github.com/kubernetes/kubernetes"
+    },
+    {
+      "repository": "rustdesk/rustdesk",
+      "stars": 127783,
+      "language": "Rust",
+      "url": "https://github.com/rustdesk/rustdesk"
+    },
+    {
+      "repository": "shadcn-ui/ui",
+      "stars": 127118,
+      "language": "TypeScript",
+      "url": "https://github.com/shadcn-ui/ui"
+    },
+    {
+      "repository": "react/react-native",
+      "stars": 126847,
+      "language": "C++",
+      "url": "https://github.com/react/react-native"
+    },
+    {
+      "repository": "electron/electron",
+      "stars": 123693,
+      "language": "C++",
+      "url": "https://github.com/electron/electron"
+    },
+    {
+      "repository": "nodejs/node",
+      "stars": 123180,
+      "language": "JavaScript",
+      "url": "https://github.com/nodejs/node"
+    },
+    {
+      "repository": "rust-lang/rust",
+      "stars": 120955,
+      "language": "Rust",
+      "url": "https://github.com/rust-lang/rust"
+    },
+    {
+      "repository": "browser-use/browser-use",
+      "stars": 119752,
+      "language": "Python",
+      "url": "https://github.com/browser-use/browser-use"
+    },
+    {
+      "repository": "2dust/v2rayN",
+      "stars": 119711,
+      "language": "C#",
+      "url": "https://github.com/2dust/v2rayN"
+    },
+    {
+      "repository": "TauricResearch/TradingAgents",
+      "stars": 119401,
+      "language": "Python",
+      "url": "https://github.com/TauricResearch/TradingAgents"
+    },
+    {
+      "repository": "godotengine/godot",
+      "stars": 119388,
+      "language": "C++",
+      "url": "https://github.com/godotengine/godot"
+    },
+    {
+      "repository": "earendil-works/pi",
+      "stars": 119312,
+      "language": "TypeScript",
+      "url": "https://github.com/earendil-works/pi"
+    },
+    {
+      "repository": "immich-app/immich",
+      "stars": 117877,
+      "language": "TypeScript",
+      "url": "https://github.com/immich-app/immich"
+    },
+    {
+      "repository": "mrdoob/three.js",
+      "stars": 117352,
+      "language": "JavaScript",
+      "url": "https://github.com/mrdoob/three.js"
+    },
+    {
+      "repository": "JuliusBrussee/caveman",
+      "stars": 116653,
+      "language": "Go",
+      "url": "https://github.com/JuliusBrussee/caveman"
+    },
+    {
+      "repository": "supabase/supabase",
+      "stars": 114402,
+      "language": "TypeScript",
+      "url": "https://github.com/supabase/supabase"
+    },
+    {
+      "repository": "tauri-apps/tauri",
+      "stars": 112405,
+      "language": "Rust",
+      "url": "https://github.com/tauri-apps/tauri"
+    },
+    {
+      "repository": "stablyai/orca",
+      "stars": 112278,
+      "language": "TypeScript",
+      "url": "https://github.com/stablyai/orca"
+    },
+    {
+      "repository": "microsoft/TypeScript",
+      "stars": 111712,
+      "language": "Go",
+      "url": "https://github.com/microsoft/TypeScript"
+    },
+    {
+      "repository": "openai/whisper",
+      "stars": 111710,
+      "language": "Python",
+      "url": "https://github.com/openai/whisper"
+    },
+    {
+      "repository": "fatedier/frp",
+      "stars": 110370,
+      "language": "Go",
+      "url": "https://github.com/fatedier/frp"
+    },
+    {
+      "repository": "paperclipai/paperclip",
+      "stars": 109794,
+      "language": "TypeScript",
+      "url": "https://github.com/paperclipai/paperclip"
+    },
+    {
+      "repository": "axios/axios",
+      "stars": 109308,
+      "language": "JavaScript",
+      "url": "https://github.com/axios/axios"
+    },
+    {
+      "repository": "thedotmack/claude-mem",
+      "stars": 108830,
+      "language": "TypeScript",
+      "url": "https://github.com/thedotmack/claude-mem"
+    },
+    {
+      "repository": "denoland/deno",
+      "stars": 108784,
+      "language": "Rust",
+      "url": "https://github.com/denoland/deno"
+    },
+    {
+      "repository": "google-gemini/gemini-cli",
+      "stars": 108652,
+      "language": "TypeScript",
+      "url": "https://github.com/google-gemini/gemini-cli"
+    },
+    {
+      "repository": "Panniantong/Agent-Reach",
+      "stars": 107525,
+      "language": "Python",
+      "url": "https://github.com/Panniantong/Agent-Reach"
+    },
+    {
+      "repository": "goldbergyoni/nodebestpractices",
+      "stars": 105700,
+      "language": "Dockerfile",
+      "url": "https://github.com/goldbergyoni/nodebestpractices"
+    },
+    {
+      "repository": "nexu-io/open-design",
+      "stars": 105305,
+      "language": "TypeScript",
+      "url": "https://github.com/nexu-io/open-design"
+    },
+    {
+      "repository": "microsoft/terminal",
+      "stars": 105301,
+      "language": "C++",
+      "url": "https://github.com/microsoft/terminal"
+    },
+    {
+      "repository": "pytorch/pytorch",
+      "stars": 105063,
+      "language": "Python",
+      "url": "https://github.com/pytorch/pytorch"
+    },
+    {
+      "repository": "deepseek-ai/DeepSeek-V3",
+      "stars": 104707,
+      "language": "Python",
+      "url": "https://github.com/deepseek-ai/DeepSeek-V3"
+    },
+    {
+      "repository": "fastapi/fastapi",
+      "stars": 104531,
+      "language": "Python",
+      "url": "https://github.com/fastapi/fastapi"
+    },
+    {
+      "repository": "neovim/neovim",
+      "stars": 103286,
+      "language": "Vim Script",
+      "url": "https://github.com/neovim/neovim"
+    },
+    {
+      "repository": "react/create-react-app",
+      "stars": 103237,
+      "language": "JavaScript",
+      "url": "https://github.com/react/create-react-app"
+    },
+    {
+      "repository": "ruvnet/RuView",
+      "stars": 101961,
+      "language": "Rust",
+      "url": "https://github.com/ruvnet/RuView"
+    },
+    {
+      "repository": "angular/angular",
+      "stars": 101093,
+      "language": "TypeScript",
+      "url": "https://github.com/angular/angular"
+    },
+    {
+      "repository": "ant-design/ant-design",
+      "stars": 100033,
+      "language": "TypeScript",
+      "url": "https://github.com/ant-design/ant-design"
+    },
+    {
+      "repository": "mui/material-ui",
+      "stars": 99294,
+      "language": "JavaScript",
+      "url": "https://github.com/mui/material-ui"
+    },
+    {
+      "repository": "pbakaus/impeccable",
+      "stars": 99081,
+      "language": "Rust",
+      "url": "https://github.com/pbakaus/impeccable"
+    },
+    {
+      "repository": "microsoft/playwright",
+      "stars": 99045,
+      "language": "TypeScript",
+      "url": "https://github.com/microsoft/playwright"
+    },
+    {
+      "repository": "karpathy/autoresearch",
+      "stars": 99013,
+      "language": "Python",
+      "url": "https://github.com/karpathy/autoresearch"
+    },
+    {
+      "repository": "tailwindlabs/tailwindcss",
+      "stars": 98274,
+      "language": "TypeScript",
+      "url": "https://github.com/tailwindlabs/tailwindcss"
+    },
+    {
+      "repository": "nvbn/thefuck",
+      "stars": 97937,
+      "language": "Python",
+      "url": "https://github.com/nvbn/thefuck"
+    },
+    {
+      "repository": "debpalash/VoiceStudio",
+      "stars": 97613,
+      "language": "Python",
+      "url": "https://github.com/debpalash/VoiceStudio"
+    },
+    {
+      "repository": "hacksider/Deep-Live-Cam",
+      "stars": 97502,
+      "language": "Python",
+      "url": "https://github.com/hacksider/Deep-Live-Cam"
+    },
+    {
+      "repository": "OpenCut-app/OpenCut",
+      "stars": 97051,
+      "language": "TypeScript",
+      "url": "https://github.com/OpenCut-app/OpenCut"
+    },
+    {
+      "repository": "localsend/localsend",
+      "stars": 96933,
+      "language": "Dart",
+      "url": "https://github.com/localsend/localsend"
+    },
+    {
+      "repository": "NationalSecurityAgency/ghidra",
+      "stars": 96684,
+      "language": "Java",
+      "url": "https://github.com/NationalSecurityAgency/ghidra"
+    },
+    {
+      "repository": "oven-sh/bun",
+      "stars": 96497,
+      "language": "Rust",
+      "url": "https://github.com/oven-sh/bun"
+    },
+    {
+      "repository": "vllm-project/vllm",
+      "stars": 96057,
+      "language": "Python",
+      "url": "https://github.com/vllm-project/vllm"
+    },
+    {
+      "repository": "3b1b/manim",
+      "stars": 95971,
+      "language": "Python",
+      "url": "https://github.com/3b1b/manim"
+    },
+    {
+      "repository": "puppeteer/puppeteer",
+      "stars": 95781,
+      "language": "TypeScript",
+      "url": "https://github.com/puppeteer/puppeteer"
+    },
+    {
+      "repository": "Stirling-Tools/Stirling-PDF",
+      "stars": 95513,
+      "language": "TypeScript",
+      "url": "https://github.com/Stirling-Tools/Stirling-PDF"
+    },
+    {
+      "repository": "sherlock-project/sherlock",
+      "stars": 95370,
+      "language": "Python",
+      "url": "https://github.com/sherlock-project/sherlock"
+    },
+    {
+      "repository": "odysseus-dev/odysseus",
+      "stars": 94872,
+      "language": "Python",
+      "url": "https://github.com/odysseus-dev/odysseus"
+    },
+    {
+      "repository": "iluwatar/java-design-patterns",
+      "stars": 94835,
+      "language": "Java",
+      "url": "https://github.com/iluwatar/java-design-patterns"
+    },
+    {
+      "repository": "infiniflow/ragflow",
+      "stars": 93294,
+      "language": "Go",
+      "url": "https://github.com/infiniflow/ragflow"
+    },
+    {
+      "repository": "louislam/uptime-kuma",
+      "stars": 93145,
+      "language": "JavaScript",
+      "url": "https://github.com/louislam/uptime-kuma"
+    }
+  ]
+}

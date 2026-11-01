@@ -1,5 +1,6 @@
 import React from "react";
 
+import { PagePagination } from "@/components/page-pagination";
 import { listDependenciesServer } from "@/lib/queries";
 import type { DependencyListItem } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,8 +16,14 @@ function dependencyDisplayName(dependency: DependencyListItem) {
   return dependency.raw || "Unknown dependency";
 }
 
-export default async function DependenciesPage() {
-  const dependencies = await listDependenciesServer();
+export default async function DependenciesPage({ searchParams = Promise.resolve({}) }: {
+  searchParams?: Promise<{ page?: string }>;
+} = {}) {
+  const [dependencies, params] = await Promise.all([listDependenciesServer(), searchParams]);
+  const pageSize = 100;
+  const requestedPage = Number(params.page ?? "1");
+  const lastPage = Math.max(0, Math.ceil(dependencies.items.length / pageSize) - 1);
+  const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? Math.min(requestedPage - 1, lastPage) : 0;
 
   return (
     <section className="space-y-6">
@@ -33,26 +40,29 @@ export default async function DependenciesPage() {
               No active dependencies found.
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Dependency</TableHead>
-                  <TableHead className="text-right">Repositories</TableHead>
-                  <TableHead className="text-right">Manifest files</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {dependencies.items.map((dependency, index) => (
-                  <TableRow
-                    key={`${dependency.name}:${dependency.version}:${dependency.raw}:${index}`}
-                  >
-                    <TableCell className="font-medium">{dependencyDisplayName(dependency)}</TableCell>
-                    <TableCell className="text-right">{dependency.repository_count}</TableCell>
-                    <TableCell className="text-right">{dependency.manifest_file_count}</TableCell>
+            <>
+              <PagePagination page={page} pageSize={pageSize} total={dependencies.items.length} />
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Dependency</TableHead>
+                    <TableHead className="text-right">Repositories</TableHead>
+                    <TableHead className="text-right">Manifest files</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {dependencies.items.slice(page * pageSize, (page + 1) * pageSize).map((dependency, index) => (
+                    <TableRow
+                      key={`${dependency.name}:${dependency.version}:${dependency.raw}:${index}`}
+                    >
+                      <TableCell className="font-medium">{dependencyDisplayName(dependency)}</TableCell>
+                      <TableCell className="text-right">{dependency.repository_count}</TableCell>
+                      <TableCell className="text-right">{dependency.manifest_file_count}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </>
           )}
         </CardContent>
       </Card>

@@ -1,7 +1,13 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { listDependenciesServer } from "@/lib/queries";
 import DependenciesPage from "./page";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => "/app/dependencies"
+}));
 
 vi.mock("@/lib/queries", () => ({
   listDependenciesServer: vi.fn().mockResolvedValue({
@@ -35,6 +41,19 @@ vi.mock("@/lib/queries", () => ({
 }));
 
 describe("DependenciesPage", () => {
+  it("renders only the requested page of a large dependency inventory", async () => {
+    vi.mocked(listDependenciesServer).mockResolvedValueOnce({
+      items: Array.from({ length: 101 }, (_, index) => ({
+        raw: `package-${index}@1`, name: `package-${index}`, version: "1", constraint: "", repository_count: 1, manifest_file_count: 1
+      }))
+    });
+    render(await DependenciesPage({ searchParams: Promise.resolve({ page: "2" }) }));
+
+    expect(screen.getAllByRole("row")).toHaveLength(2);
+    expect(screen.getByText("package-100@1")).toBeInTheDocument();
+    expect(screen.queryByText("package-0@1")).not.toBeInTheDocument();
+    expect(screen.getByText("101 to 101 of 101")).toBeInTheDocument();
+  });
   it("renders the dependency table with display fallbacks", async () => {
     render(await DependenciesPage());
 
