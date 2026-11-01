@@ -27,6 +27,7 @@ type Repository struct {
 	Name         string `json:"name"`
 	Head         string `json:"head_full_scan_id"`
 	DashboardURL string `json:"html_url"`
+	Homepage     string `json:"homepage"`
 	Branch       string `json:"default_branch"`
 	Workspace    string `json:"workspace"`
 }

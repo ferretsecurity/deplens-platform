@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net/url"
+	"path"
 	"regexp"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,6 +22,7 @@ var ErrConflict = errors.New("a Socket sync is already active")
 var ErrConfig = errors.New("Socket organization and token are required")
 var ErrLease = errors.New("Socket sync ownership expired")
 var organizationPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,99}$`)
+var githubRepositoryPathPattern = regexp.MustCompile(`^/[a-zA-Z0-9][a-zA-Z0-9-]*/[a-zA-Z0-9_.-]+/?$`)
 
 type Run struct {
 	ID         string     `json:"id"`
@@ -393,6 +397,10 @@ func checkLease(ctx context.Context, tx pgx.Tx, id, owner string) error {
 	return nil
 }
 func (s *Service) publish(ctx context.Context, runID, owner, connection, tenant string, repo Repository, snapshot Snapshot) error {
+	scmURL := snapshot.Metadata.SCMURL
+	if scmURL == "" {
+		scmURL = githubRepositoryHomepage(repo.Homepage)
+	}
 	sort.Strings(snapshot.Files)
 	data, err := json.Marshal(snapshot)
 	if err != nil {
@@ -407,7 +415,7 @@ func (s *Service) publish(ctx context.Context, runID, owner, connection, tenant 
 		return err
 	}
 	var match *string
-	normalized := NormalizeSCM(snapshot.Metadata.SCMURL)
+	normalized := NormalizeSCM(scmURL)
 	if normalized != "" {
 		rows, e := tx.Query(ctx, `select id,url from repositories where tenant_id=$1`, tenant)
 		if e != nil {
@@ -434,11 +442,23 @@ func (s *Service) publish(ctx context.Context, runID, owner, connection, tenant 
 			match = nil
 		}
 	}
-	_, err = tx.Exec(ctx, `update socket_repositories set snapshot=$3,synced_at=now(),scan_id=$4,scm_url=$5,cli_repository_id=case when mapping_explicit then cli_repository_id else $6 end where connection_id=$1 and remote_id=$2`, connection, repo.ID, data, repo.Head, snapshot.Metadata.SCMURL, match)
+	_, err = tx.Exec(ctx, `update socket_repositories set snapshot=$3,synced_at=now(),scan_id=$4,scm_url=$5,cli_repository_id=case when mapping_explicit then cli_repository_id else $6 end where connection_id=$1 and remote_id=$2`, connection, repo.ID, data, repo.Head, scmURL, match)
 	if err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
+}
+
+func githubRepositoryHomepage(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "https" || u.Host != "github.com" || u.User != nil || strings.ContainsAny(raw, "?#") || u.RawPath != "" || !githubRepositoryPathPattern.MatchString(u.Path) {
+		return ""
+	}
+	name := strings.TrimSuffix(path.Base(u.Path), ".git")
+	if name == "" || name == "." || name == ".." {
+		return ""
+	}
+	return raw
 }
 
 type InventoryRepository struct {

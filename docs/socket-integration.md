@@ -14,6 +14,8 @@ Without `SOCKET_ENCRYPTION_KEY`, configuration and imports are disabled. Existin
 
 Repositories link automatically to CLI inventory only when one CLI repository has the same normalized SCM URL. Names never establish identity. For other cases, open the repository's **Manage CLI repository mapping** control. Search for and select the matching CLI repository, or keep the Socket repository separate.
 
+The SCM URL comes from the head scan's `integration_repo_url`. When that field is empty, synchronization uses the Socket repository's `homepage` only if it is an HTTPS GitHub repository URL such as `https://github.com/owner/repo`. A trailing slash or `.git` suffix is allowed. Product websites, other hosts, credentials, ports, queries, fragments, and paths below a repository are ignored. The selected URL supplies the repository link and automatic CLI matching. The saved scan metadata keeps the original `integration_repo_url`, and explicit CLI mappings remain unchanged.
+
 # Socket synchronization reference
 
 The integration uses the official `https://api.socket.dev/v0` API. It lists all repository pages, including archived repositories and all workspaces. It imports each head full scan, its metadata, all artifacts and manifest references, and the names of submitted files from the tar archive. It never extracts the archive or stores file contents. Files with no package references and artifacts with no manifest references remain visible.

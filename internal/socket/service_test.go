@@ -322,6 +322,96 @@ func TestIntegration(t *testing.T) {
 		t.Fatal("expired lease not recovered")
 	}
 
+	t.Run("repository homepage fallback", func(t *testing.T) {
+		var homepageTenant, homepageCLI, integrationCLI string
+		if err := db.QueryRow(ctx, `insert into tenants(slug,name)values('homepage','Homepage')returning id`).Scan(&homepageTenant); err != nil {
+			t.Fatal(err)
+		}
+		if err := db.QueryRow(ctx, `insert into repositories(tenant_id,name,url,default_branch)values($1,'Homepage CLI','git@github.com:fixture/homepage.git','main')returning id`, homepageTenant).Scan(&homepageCLI); err != nil {
+			t.Fatal(err)
+		}
+		if err := db.QueryRow(ctx, `insert into repositories(tenant_id,name,url,default_branch)values($1,'Integration CLI','https://github.com/fixture/integration','main')returning id`, homepageTenant).Scan(&integrationCLI); err != nil {
+			t.Fatal(err)
+		}
+		service := &Service{DB: db, Vault: vault}
+		if err := service.Save(ctx, homepageTenant, "fixture", &token, 0); err != nil {
+			t.Fatal(err)
+		}
+		for _, test := range []struct {
+			name        string
+			homepage    string
+			integration string
+			wantURL     string
+			wantCLI     string
+			explicit    bool
+		}{
+			{name: "GitHub repository", homepage: "https://github.com/fixture/homepage", wantURL: "https://github.com/fixture/homepage", wantCLI: homepageCLI},
+			{name: "GitHub suffix", homepage: "https://github.com/Fixture/Homepage.git/", wantURL: "https://github.com/Fixture/Homepage.git/", wantCLI: homepageCLI},
+			{name: "integration takes precedence", homepage: "https://github.com/fixture/homepage", integration: "https://github.com/fixture/integration", wantURL: "https://github.com/fixture/integration", wantCLI: integrationCLI},
+			{name: "non-GitHub integration retained", homepage: "https://github.com/fixture/homepage", integration: "https://gitlab.com/fixture/project", wantURL: "https://gitlab.com/fixture/project"},
+			{name: "unrecognized integration retained", homepage: "https://github.com/fixture/homepage", integration: "invalid-upstream-value", wantURL: "invalid-upstream-value"},
+			{name: "product homepage", homepage: "https://example.com/fixture/homepage"},
+			{name: "GitHub Pages", homepage: "https://fixture.github.io/homepage"},
+			{name: "HTTP", homepage: "http://github.com/fixture/homepage"},
+			{name: "credentials", homepage: "https://user@github.com/fixture/homepage"},
+			{name: "custom port", homepage: "https://github.com:443/fixture/homepage"},
+			{name: "query", homepage: "https://github.com/fixture/homepage?tab=readme"},
+			{name: "empty query", homepage: "https://github.com/fixture/homepage?"},
+			{name: "fragment", homepage: "https://github.com/fixture/homepage#readme"},
+			{name: "empty fragment", homepage: "https://github.com/fixture/homepage#"},
+			{name: "extra path", homepage: "https://github.com/fixture/homepage/tree/main"},
+			{name: "encoded path", homepage: "https://github.com/fixture/%68omepage"},
+			{name: "host suffix", homepage: "https://github.com.example.com/fixture/homepage"},
+			{name: "missing repository", homepage: "https://github.com/fixture"},
+			{name: "dot repository", homepage: "https://github.com/fixture/.."},
+			{name: "empty homepage"},
+			{name: "explicit mapping retained", homepage: "https://github.com/fixture/homepage", wantURL: "https://github.com/fixture/homepage", wantCLI: integrationCLI, explicit: true},
+			{name: "explicit separation retained", homepage: "https://github.com/fixture/homepage", wantURL: "https://github.com/fixture/homepage", explicit: true},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				if test.explicit {
+					var source string
+					if err := db.QueryRow(ctx, `select sr.id from socket_repositories sr join socket_connections c on c.id=sr.connection_id where c.tenant_id=$1`, homepageTenant).Scan(&source); err != nil {
+						t.Fatal(err)
+					}
+					var mapped *string
+					if test.wantCLI != "" {
+						mapped = &test.wantCLI
+					}
+					if err := service.MapRepository(ctx, homepageTenant, source, mapped); err != nil {
+						t.Fatal(err)
+					}
+				}
+				service.Client = fixtureClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					switch {
+					case strings.HasSuffix(r.URL.Path, "/repos"):
+						fmt.Fprintf(w, `{"results":[{"id":"homepage","name":"Homepage","head_full_scan_id":"homepage-scan","homepage":%q}]}`, test.homepage)
+					case strings.HasSuffix(r.URL.Path, "/metadata"):
+						json.NewEncoder(w).Encode(Metadata{SCMURL: test.integration})
+					case strings.HasSuffix(r.URL.Path, "/files/tar"):
+						tar.NewWriter(w).Close()
+					}
+				}))
+				if _, err := service.Start(ctx, homepageTenant); err != nil {
+					t.Fatal(err)
+				}
+				service.workOnce(ctx)
+				cfg, err := service.Configuration(ctx, homepageTenant)
+				if err != nil || cfg.LastRun == nil || cfg.LastRun.Status != "completed" || cfg.LastRun.Failed != 0 {
+					t.Fatalf("homepage import did not complete: %#v, %v", cfg.LastRun, err)
+				}
+				var scmURL, matched, rawSCM string
+				err = db.QueryRow(ctx, `select sr.scm_url,coalesce(sr.cli_repository_id::text,''),sr.snapshot->'metadata'->>'integration_repo_url' from socket_repositories sr join socket_connections c on c.id=sr.connection_id where c.tenant_id=$1`, homepageTenant).Scan(&scmURL, &matched, &rawSCM)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if scmURL != test.wantURL || matched != test.wantCLI || rawSCM != test.integration {
+					t.Fatalf("URL, CLI mapping, raw metadata = %q, %q, %q; want %q, %q, %q", scmURL, matched, rawSCM, test.wantURL, test.wantCLI, test.integration)
+				}
+			})
+		}
+	})
+
 	t.Run("progress failure stops a full queue", func(t *testing.T) {
 		s.Client = fixtureClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			repos := make([]Repository, 12)
