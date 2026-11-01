@@ -84,6 +84,7 @@ type ManifestDependencyItem struct {
 }
 
 type DependencyListItem struct {
+	Ecosystem         string `json:"ecosystem"`
 	Raw               string `json:"raw"`
 	Name              string `json:"name"`
 	Version           string `json:"version"`

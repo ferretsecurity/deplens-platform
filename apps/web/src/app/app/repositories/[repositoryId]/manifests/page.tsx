@@ -1,9 +1,19 @@
 import React from "react";
+import { SocketInventoryView } from "@/components/socket-inventory";
+import { RepositorySources } from "@/components/repository-sources";
+import { fetchCurrentUserServer } from "@/lib/auth.server";
 import Link from "next/link";
 
-import { listRepositoryOptionsServer, listRepositoryManifestsServer } from "@/lib/queries";
+import { getRepositoryInventoryServer, listRepositoryManifestsServer } from "@/lib/queries";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString();
@@ -17,11 +27,12 @@ export default async function RepositoryManifestsPage({
   }>;
 }) {
   const { repositoryId } = await params;
-  const [repositories, manifests] = await Promise.all([
-    listRepositoryOptionsServer(),
-    listRepositoryManifestsServer(repositoryId)
+  const [inventory, manifests, user] = await Promise.all([
+    getRepositoryInventoryServer(repositoryId),
+    listRepositoryManifestsServer(repositoryId),
+    fetchCurrentUserServer()
   ]);
-  const repository = repositories.find((item) => item.id === repositoryId);
+  const repository = inventory.repository;
 
   return (
     <section className="space-y-6">
@@ -33,7 +44,9 @@ export default async function RepositoryManifestsPage({
           <span className="mx-2">/</span>
           Manifest files
         </div>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Manifest files</h1>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+          Manifest files
+        </h1>
       </div>
 
       <Card className="border-slate-200/80 bg-white/80 shadow-sm backdrop-blur">
@@ -55,9 +68,12 @@ export default async function RepositoryManifestsPage({
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-4">
+            <RepositorySources repository={repository} />
+          </div>
           {manifests.items.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-sm text-slate-600">
-              No manifest files found for this repository.
+              No CLI manifest files found for this repository.
             </div>
           ) : (
             <Table>
@@ -85,6 +101,10 @@ export default async function RepositoryManifestsPage({
           )}
         </CardContent>
       </Card>
+      <SocketInventoryView
+        sources={inventory.sources}
+        admin={user.role === "owner" || user.role === "admin"}
+      />
     </section>
   );
 }

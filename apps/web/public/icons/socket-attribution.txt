@@ -1,0 +1,2 @@
+Socket logomark from https://github.com/SocketDev/socket-cli/blob/main/assets/repo/logomark.svg
+Copyright Socket. Used to identify links to Socket. Socket is a trademark of Socket, Inc.

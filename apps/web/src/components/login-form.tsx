@@ -22,14 +22,15 @@ type LoginValues = z.infer<typeof loginSchema>;
 
 type LoginFormProps = {
   onSuccess?: () => void;
+  defaultValues?: LoginValues;
 };
 
-export function LoginForm({ onSuccess }: LoginFormProps) {
+export function LoginForm({ onSuccess, defaultValues }: LoginFormProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
+    defaultValues: defaultValues ?? {
       email: "",
       password: ""
     }

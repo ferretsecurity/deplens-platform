@@ -55,13 +55,13 @@ describe("DependenciesPage", () => {
     expect(screen.getByText("101 to 101 of 101")).toBeInTheDocument();
   });
   it("renders the dependency table with display fallbacks", async () => {
-    render(await DependenciesPage());
+    render(await DependenciesPage({}));
 
     expect(screen.getByRole("columnheader", { name: "Dependency" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Repositories" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Manifest files" })).toBeInTheDocument();
 
-    const reactRow = screen.getByRole("row", { name: /react@19\.1\.0 2 3/i });
+    const reactRow = screen.getByRole("row", { name: /react@19\.1\.0 Unspecified 2 3/i });
     expect(within(reactRow).getByText("react@19.1.0")).toBeInTheDocument();
 
     expect(screen.getByText("internal-lib ^2")).toBeInTheDocument();

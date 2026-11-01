@@ -6,11 +6,88 @@ servers:
   - url: http://localhost:8080
 components:
   securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: deplens_session
     bearerAuth:
       type: http
       scheme: bearer
       description: Bearer reads require scan:read. Uploads require scan:write.
   schemas:
+    SocketRun:
+      type: object
+      required: [id, status, started_at, finished_at, total, completed, failed, message]
+      properties:
+        id: {type: string, format: uuid}
+        status: {type: string, enum: [queued, running, completed, partial, failed, cancelled]}
+        started_at: {type: string, format: date-time}
+        finished_at: {type: [string, "null"], format: date-time}
+        total: {type: integer}
+        completed: {type: integer}
+        failed: {type: integer}
+        message: {type: string}
+    SocketConfiguration:
+      type: object
+      required: [enabled, organization, token_configured, interval_minutes, next_run_at, last_run]
+      properties:
+        enabled: {type: boolean}
+        organization: {type: string}
+        token_configured: {type: boolean}
+        interval_minutes: {type: integer, enum: [0, 60, 360, 720, 1440]}
+        next_run_at: {type: [string, "null"], format: date-time}
+        last_run:
+          oneOf:
+            - $ref: "#/components/schemas/SocketRun"
+            - type: "null"
+    SocketArtifact:
+      type: object
+      properties:
+        id: {type: string}
+        type: {type: string}
+        namespace: {type: string}
+        name: {type: string}
+        version: {type: string}
+        direct: {type: [boolean, "null"]}
+        dev: {type: [boolean, "null"]}
+        manifestFiles:
+          type: array
+          items:
+            type: object
+            properties:
+              file: {type: string}
+              start: {}
+              end: {}
+    RepositoryInventory:
+      type: object
+      properties:
+        repository:
+          $ref: "#/components/schemas/RepositorySummary"
+        sources:
+          type: array
+          items:
+            type: object
+            properties:
+              id: {type: string, format: uuid}
+              available: {type: boolean}
+              error: {type: string}
+              synced_at: {type: [string, "null"], format: date-time}
+              snapshot:
+                type: [object, "null"]
+                properties:
+                  files: {type: array, items: {type: string}}
+                  metadata:
+                    type: object
+                    properties:
+                      branch: {type: string}
+                      commit_hash: {type: string}
+                      integration_repo_url: {type: string}
+                      html_report_url: {type: string}
+                      incomplete: {type: boolean}
+                  artifacts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SocketArtifact"
     ScanUploadRequest:
       type: object
       required: [schema_version, repository, source]
@@ -207,6 +284,9 @@ components:
       type: object
       required: [id, name, url, default_branch]
       properties:
+        cli: {type: boolean}
+        socket: {type: boolean}
+        socket_url: {type: string}
         id:
           type: string
           format: uuid
@@ -375,6 +455,7 @@ components:
       type: object
       required: [raw, name, version, constraint, repository_count, manifest_file_count]
       properties:
+        ecosystem: {type: string}
         raw:
           type: string
         name:
@@ -427,6 +508,108 @@ components:
 security:
   - bearerAuth: []
 paths:
+  /api/v1/integrations/socket:
+    get:
+      summary: Read Socket configuration without the token
+      description: Requires a current owner or admin tenant membership.
+      security: [{sessionAuth: []}]
+      responses:
+        "200":
+          description: Configuration and most recent durable run
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/SocketConfiguration"}
+        "403": {description: Current administrator membership required}
+    put:
+      summary: Save Socket organization, token and schedule
+      description: JSON and same-origin browser requests only. Omit token to preserve it. Disconnect before changing organization. Rejected during active synchronization.
+      security: [{sessionAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [organization, interval_minutes]
+              properties:
+                organization: {type: string, pattern: '^[a-zA-Z0-9][a-zA-Z0-9_-]{0,99}$'}
+                token: {type: string, writeOnly: true, minLength: 1, maxLength: 4096}
+                interval_minutes: {type: integer, enum: [0, 60, 360, 720, 1440]}
+      responses:
+        "200": {description: Configuration saved}
+        "400": {description: Invalid configuration}
+        "403": {description: Current administrator membership or same origin required}
+        "409": {description: Synchronization already active}
+    delete:
+      summary: Disconnect Socket and remove imported Socket data
+      description: CLI repositories and scans are preserved. Requires JSON and same origin.
+      security: [{sessionAuth: []}]
+      responses:
+        "200": {description: Disconnected}
+        "403": {description: Current administrator membership or same origin required}
+  /api/v1/integrations/socket/test:
+    post:
+      summary: Test saved Socket read permissions
+      security: [{sessionAuth: []}]
+      responses:
+        "200": {description: Repository and full scan listing permissions verified}
+        "502": {description: Socket access could not be verified}
+  /api/v1/integrations/socket/sync:
+    post:
+      summary: Queue a durable manual synchronization
+      security: [{sessionAuth: []}]
+      responses:
+        "200":
+          description: Synchronization queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  run_id: {type: string, format: uuid}
+        "409": {description: Synchronization already active}
+  /api/v1/integrations/socket/status:
+    get:
+      summary: Read current configuration and latest synchronization status
+      security: [{sessionAuth: []}]
+      responses:
+        "200":
+          description: Configuration and durable progress counters
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/SocketConfiguration"}
+  /api/v1/integrations/socket/repositories/{repository_id}/mapping:
+    put:
+      summary: Explicitly map a Socket repository to a CLI repository in this tenant
+      security: [{sessionAuth: []}]
+      parameters:
+        - {name: repository_id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cli_repository_id]
+              properties:
+                cli_repository_id: {type: [string, "null"], format: uuid}
+      responses:
+        "200": {description: Mapping saved. Null keeps the Socket repository separate.}
+        "403": {description: Current administrator membership required}
+  /api/v1/repositories/{repository_id}/inventory:
+    get:
+      summary: Read a repository directly with its Socket inventory
+      description: Requires a current tenant membership. Does not depend on repository list pagination.
+      security: [{sessionAuth: []}]
+      parameters:
+        - {name: repository_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        "200":
+          description: Repository and current Socket snapshots
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/RepositoryInventory"}
+        "404": {description: Repository not found in the current tenant}
   /api/v1/scans:
     get:
       summary: List scans for the current tenant

@@ -5,6 +5,9 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/ferretsecurity/deplens-platform/internal/app"
 	"github.com/ferretsecurity/deplens-platform/internal/config"
@@ -51,9 +54,22 @@ func main() {
 		os.Exit(1)
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	workerDone := make(chan struct{})
+	go func() { defer close(workerDone); application.Socket.Work(ctx) }()
+	server := &http.Server{Addr: cfg.HTTPAddress, Handler: application.Handler, ReadHeaderTimeout: 10 * time.Second}
+	go func() {
+		<-ctx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = server.Shutdown(shutdownCtx)
+	}()
 	logger.Info("http server starting", "http_address", cfg.HTTPAddress, "app_base_url", cfg.AppBaseURL)
-	if err := http.ListenAndServe(cfg.HTTPAddress, application.Handler); err != nil {
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.Error("http server stopped", "error", err)
 		os.Exit(1)
 	}
+	stop()
+	<-workerDone
 }

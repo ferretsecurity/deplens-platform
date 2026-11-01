@@ -4,25 +4,30 @@ import { describe, expect, it, vi } from "vitest";
 import RepositoryManifestsPage from "./page";
 
 const mocks = vi.hoisted(() => ({
-  listRepositoryOptionsServer: vi.fn(),
+  getRepositoryInventoryServer: vi.fn(),
   listRepositoryManifestsServer: vi.fn()
 }));
 
 vi.mock("@/lib/queries", () => ({
-  listRepositoryOptionsServer: mocks.listRepositoryOptionsServer,
+  getRepositoryInventoryServer: mocks.getRepositoryInventoryServer,
   listRepositoryManifestsServer: mocks.listRepositoryManifestsServer
+}));
+
+vi.mock("@/lib/auth.server", () => ({
+  fetchCurrentUserServer: vi.fn().mockResolvedValue({ role: "viewer" })
 }));
 
 describe("RepositoryManifestsPage", () => {
   it("renders manifest lifecycle rows for the repository", async () => {
-    mocks.listRepositoryOptionsServer.mockResolvedValue([
-      {
+    mocks.getRepositoryInventoryServer.mockResolvedValue({
+      repository: {
         id: "repo-1",
         name: "Repo One",
         url: "https://example.com/repo.git",
         default_branch: "main"
-      }
-    ]);
+      },
+      sources: []
+    });
     mocks.listRepositoryManifestsServer.mockResolvedValue({
       items: [
         {
@@ -48,7 +53,10 @@ describe("RepositoryManifestsPage", () => {
 
     render(await RepositoryManifestsPage({ params: Promise.resolve({ repositoryId: "repo-1" }) }));
 
-    expect(screen.getByRole("link", { name: /repositories/i })).toHaveAttribute("href", "/app/repositories");
+    expect(screen.getByRole("link", { name: /repositories/i })).toHaveAttribute(
+      "href",
+      "/app/repositories"
+    );
     expect(screen.getByText("Repo One")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "https://example.com/repo.git" })).toHaveAttribute(
       "href",
@@ -61,18 +69,21 @@ describe("RepositoryManifestsPage", () => {
   });
 
   it("renders an empty state when the repository has no manifest files", async () => {
-    mocks.listRepositoryOptionsServer.mockResolvedValue([
-      {
+    mocks.getRepositoryInventoryServer.mockResolvedValue({
+      repository: {
         id: "repo-1",
         name: "Repo One",
         url: "https://example.com/repo.git",
         default_branch: "main"
-      }
-    ]);
+      },
+      sources: []
+    });
     mocks.listRepositoryManifestsServer.mockResolvedValue({ items: [] });
 
     render(await RepositoryManifestsPage({ params: Promise.resolve({ repositoryId: "repo-1" }) }));
 
-    expect(screen.getByText("No manifest files found for this repository.")).toBeInTheDocument();
+    expect(
+      screen.getByText("No CLI manifest files found for this repository.")
+    ).toBeInTheDocument();
   });
 });

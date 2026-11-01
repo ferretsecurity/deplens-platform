@@ -19,6 +19,10 @@ Next.js forwards browser requests under `/auth` and `/api` to the API at
 `http://localhost:8080`, so login and API requests use the web origin.
 Set `API_INTERNAL_BASE_URL` before starting the web app to use another API address.
 
+For local development, set `DEV_LOGIN_PREFILL=true` and pass `BOOTSTRAP_OWNER_EMAIL`
+and `BOOTSTRAP_OWNER_PASSWORD` to the web process to prefill the login form.
+Prefill is disabled outside development mode.
+
 ## First login
 
 ```bash
@@ -181,3 +185,5 @@ Pushing a `vX.Y.Z` tag publishes `linux/amd64` API and web images to GitHub Cont
 - `ghcr.io/ferretsecurity/deplens-platform-web`
 
 The workflow publishes the `X.Y.Z` tag for every release. Stable releases also publish moving `X.Y`, `X`, and `latest` tags. The build attaches Docker provenance and SBOM attestations and publishes a GitHub artifact attestation for each image digest.
+
+Socket inventory imports are optional. See [Configure Socket imports](docs/socket-integration.md) for token scopes, encryption key setup, scheduling, and browser verification.

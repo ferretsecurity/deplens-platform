@@ -15,6 +15,7 @@ import (
 	"github.com/ferretsecurity/deplens-platform/internal/config"
 	httpapi "github.com/ferretsecurity/deplens-platform/internal/http"
 	"github.com/ferretsecurity/deplens-platform/internal/scans"
+	"github.com/ferretsecurity/deplens-platform/internal/socket"
 	"github.com/ferretsecurity/deplens-platform/internal/store"
 )
 
@@ -23,6 +24,7 @@ type App struct {
 	DB        *pgxpool.Pool
 	BlobStore blob.Store
 	Handler   http.Handler
+	Socket    *socket.Service
 }
 
 func New(cfg config.Config) (*App, error) {
@@ -65,11 +67,29 @@ func New(cfg config.Config) (*App, error) {
 		uploadService,
 		httpapi.NewProductionQueryService(persistence, store.ScanStore{DB: db}, sessionManager, blobStore),
 	)
-	appHandler := sessionManager.LoadAndSave(routeAuthAndAPI(authRouter, tokenRouter, apiRouter))
+	var vault *socket.Vault
+	if cfg.SocketEncryptionKey != "" {
+		vault, err = socket.NewVault(cfg.SocketEncryptionKey)
+		if err != nil {
+			db.Close()
+			return nil, err
+		}
+	}
+	socketService := &socket.Service{DB: db, Client: socket.NewClient(), Vault: vault}
+	socketRouter := httpapi.NewSocketRouter(sessionManager, socketService, cfg.AppBaseURL)
+	routes := routeAuthAndAPI(authRouter, tokenRouter, apiRouter)
+	appHandler := sessionManager.LoadAndSave(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/v1/integrations/socket") || (strings.HasPrefix(r.URL.Path, "/api/v1/repositories/") && strings.HasSuffix(r.URL.Path, "/inventory")) {
+			socketRouter.ServeHTTP(w, r)
+			return
+		}
+		routes.ServeHTTP(w, r)
+	}))
 	handler := routeHealthAndApp(httpapi.NewHealthRouter(databaseReadinessChecker{DB: db}), appHandler)
 
 	return &App{
 		Config:    cfg,
+		Socket:    socketService,
 		DB:        db,
 		BlobStore: blobStore,
 		Handler:   handler,

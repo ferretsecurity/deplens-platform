@@ -236,6 +236,10 @@ func newTestQueryRouterWithSessions(t *testing.T, sessions *scs.SessionManager) 
 
 type fakeTokenLookup struct{}
 
+func (fakeTokenLookup) ListMemberships(_ context.Context, user string) ([]store.MembershipRecord, error) {
+	return []store.MembershipRecord{{TenantID: "tenant-1", Role: "owner"}}, nil
+}
+
 func (fakeTokenLookup) FindToken(_ context.Context, tokenHash string) (string, []string, error) {
 	if tokenHash != auth.HashToken("bootstrap-token") {
 		return "", nil, errUnauthorized

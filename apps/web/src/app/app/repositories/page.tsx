@@ -1,4 +1,5 @@
 import React from "react";
+import { RepositorySources } from "@/components/repository-sources";
 import Link from "next/link";
 
 import { listRepositoriesServer } from "@/lib/queries";
@@ -71,7 +72,7 @@ export default async function RepositoriesPage({
       <Card className="border-slate-200/80 bg-white/80 shadow-sm backdrop-blur">
         <CardHeader>
           <CardTitle>Repositories</CardTitle>
-          <CardDescription>Browse repositories that have uploaded scan snapshots.</CardDescription>
+          <CardDescription>Browse repositories imported from the CLI and Socket.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <form className="flex flex-col gap-3 sm:flex-row" method="get">
@@ -100,7 +101,7 @@ export default async function RepositoriesPage({
 
           {repositories.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-sm text-slate-600">
-              {query ? "No repositories match this search." : "No repositories have been uploaded yet."}
+              {query ? "No repositories match this search." : "No repositories have been imported yet."}
             </div>
           ) : (
             <>
@@ -111,7 +112,7 @@ export default async function RepositoriesPage({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>URL</TableHead>
+                    <TableHead>Sources</TableHead><TableHead>URL</TableHead>
                     <TableHead>Default branch</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -120,7 +121,7 @@ export default async function RepositoriesPage({
                   {repositories.map((repository) => (
                     <TableRow key={repository.id}>
                       <TableCell className="font-medium">{repository.name}</TableCell>
-                      <TableCell className="max-w-[380px] truncate">
+                      <TableCell><RepositorySources repository={repository} /></TableCell><TableCell className="max-w-[380px] truncate">
                         <a
                           className="text-slate-600 underline-offset-4 hover:text-slate-900 hover:underline"
                           href={repository.url}

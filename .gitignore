@@ -6,3 +6,4 @@ apps/web/.next/
 apps/web/test-results/
 apps/web/playwright-report/
 .env
+*.tsbuildinfo

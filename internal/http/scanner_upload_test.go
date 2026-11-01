@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"github.com/ferretsecurity/deplens-platform/internal/store"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -117,6 +118,10 @@ func TestScanReportRejectsUnauthenticatedAccessBeforeArtifactRead(t *testing.T) 
 }
 
 type writeOnlyTokenLookup struct{}
+
+func (writeOnlyTokenLookup) ListMemberships(context.Context, string) ([]store.MembershipRecord, error) {
+	return []store.MembershipRecord{{TenantID: "tenant-1", Role: "owner"}}, nil
+}
 
 func (writeOnlyTokenLookup) FindToken(_ context.Context, _ string) (string, []string, error) {
 	return "tenant-1", []string{"scan:write"}, nil

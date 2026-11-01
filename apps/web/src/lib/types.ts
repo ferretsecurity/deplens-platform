@@ -13,6 +13,9 @@ export type MembershipRecord = {
 };
 
 export type RepositoryListItem = {
+ cli?: boolean;
+ socket?: boolean;
+ socket_url?: string;
   id: string;
   name: string;
   url: string;
@@ -71,6 +74,7 @@ export type ManifestDependencyItem = {
 };
 
 export type DependencyListItem = {
+ ecosystem?: string;
   raw: string;
   name: string;
   version: string;

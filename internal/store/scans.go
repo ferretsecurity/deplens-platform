@@ -28,6 +28,9 @@ type RepositoryListItem struct {
 	Name          string `json:"name"`
 	URL           string `json:"url"`
 	DefaultBranch string `json:"default_branch"`
+	CLI           bool   `json:"cli"`
+	Socket        bool   `json:"socket"`
+	SocketURL     string `json:"socket_url"`
 }
 
 type RepositoryListFilter struct {
@@ -84,8 +87,8 @@ func (s ScanStore) ListRepositories(ctx context.Context, filter RepositoryListFi
 
 	rows, err := s.DB.Query(ctx, `
 		with filtered as (
-			select r.id, r.name, r.url, r.default_branch
-			from repositories r
+			select r.id, r.name, r.url, r.default_branch, r.cli, r.socket, r.socket_url
+			from inventory_repositories r
 			where r.tenant_id = $1
 			  and (
 				$2 = ''
@@ -97,7 +100,7 @@ func (s ScanStore) ListRepositories(ctx context.Context, filter RepositoryListFi
 			select count(*) as total
 			from filtered
 		)
-		select f.id, f.name, f.url, f.default_branch, c.total
+		select f.id, f.name, f.url, f.default_branch, f.cli, f.socket, f.socket_url, c.total
 		from filtered f
 		cross join counted c
 		order by lower(f.name) asc, f.id asc
@@ -112,7 +115,7 @@ func (s ScanStore) ListRepositories(ctx context.Context, filter RepositoryListFi
 	total := 0
 	for rows.Next() {
 		var item RepositoryListItem
-		if err := rows.Scan(&item.ID, &item.Name, &item.URL, &item.DefaultBranch, &total); err != nil {
+		if err := rows.Scan(&item.ID, &item.Name, &item.URL, &item.DefaultBranch, &item.CLI, &item.Socket, &item.SocketURL, &total); err != nil {
 			return RepositoryListPage{}, err
 		}
 		items = append(items, item)
@@ -123,7 +126,7 @@ func (s ScanStore) ListRepositories(ctx context.Context, filter RepositoryListFi
 	if len(items) == 0 {
 		if err := s.DB.QueryRow(ctx, `
 			select count(*)
-			from repositories r
+			from inventory_repositories r
 			where r.tenant_id = $1
 			  and (
 				$2 = ''
@@ -206,12 +209,13 @@ func (s ScanStore) ListDependencies(ctx context.Context, tenantID string) ([]Dep
 	rows, err := s.DB.Query(ctx, `
 		with active_dependencies as (
 			select
-				d.id,
+				d.id::text as id,
+				''::text as			ecosystem,
 				d.raw,
 				d.name,
 				d.version,
 				d."constraint",
-				m.id as manifest_id,
+				m.id::text as manifest_id,
 				r.id as repository_id,
 				(d.name <> '' and d.version <> '') as is_grouped
 			from manifest_dependencies d
@@ -220,8 +224,20 @@ func (s ScanStore) ListDependencies(ctx context.Context, tenantID string) ([]Dep
 			join repositories r on r.id = m.repository_id
 			where r.tenant_id = $1
 			  and m.disappeared_at is null
+			union all
+			select sr.id::text || ':' || (a->>'id'), coalesce(a->>'type',''), ''::text,
+			case when coalesce(a->>'namespace','')<>'' then (a->>'namespace')||'/'||(a->>'name') else coalesce(a->>'name','') end,
+			coalesce(a->>'version',''), ''::text,
+			case when ref->>'file' is not null then sr.id::text||':'||(ref->>'file') end,
+			coalesce(sr.cli_repository_id,sr.id),
+			(coalesce(a->>'name','')<>'' and coalesce(a->>'version','')<>'')
+			from socket_repositories sr join socket_connections c on c.id=sr.connection_id
+			cross join lateral jsonb_array_elements(sr.snapshot->'artifacts') a
+			left join lateral jsonb_array_elements(a->'manifestFiles') ref on true
+			where c.tenant_id=$1 and sr.available
 		)
 		select
+			ecosystem,
 			min(raw) as raw,
 			case when is_grouped then max(name) else min(name) end as name,
 			case when is_grouped then max(version) else min(version) end as version,
@@ -230,6 +246,7 @@ func (s ScanStore) ListDependencies(ctx context.Context, tenantID string) ([]Dep
 			count(distinct manifest_id) as manifest_file_count
 		from active_dependencies
 		group by
+			ecosystem,
 			is_grouped,
 			case when is_grouped then name else id::text end,
 			case when is_grouped then version else id::text end
@@ -252,7 +269,7 @@ func (s ScanStore) ListDependencies(ctx context.Context, tenantID string) ([]Dep
 	items := make([]DependencyListItem, 0)
 	for rows.Next() {
 		var item DependencyListItem
-		if err := rows.Scan(&item.Raw, &item.Name, &item.Version, &item.Constraint, &item.RepositoryCount, &item.ManifestFileCount); err != nil {
+		if err := rows.Scan(&item.Ecosystem, &item.Raw, &item.Name, &item.Version, &item.Constraint, &item.RepositoryCount, &item.ManifestFileCount); err != nil {
 			return nil, err
 		}
 		items = append(items, item)

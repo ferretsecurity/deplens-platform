@@ -18,7 +18,7 @@ function dependencyDisplayName(dependency: DependencyListItem) {
 
 export default async function DependenciesPage({ searchParams = Promise.resolve({}) }: {
   searchParams?: Promise<{ page?: string }>;
-} = {}) {
+}) {
   const [dependencies, params] = await Promise.all([listDependenciesServer(), searchParams]);
   const pageSize = 100;
   const requestedPage = Number(params.page ?? "1");
@@ -46,7 +46,7 @@ export default async function DependenciesPage({ searchParams = Promise.resolve(
                 <TableHeader>
                   <TableRow>
                     <TableHead>Dependency</TableHead>
-                    <TableHead className="text-right">Repositories</TableHead>
+                    <TableHead>Ecosystem</TableHead><TableHead className="text-right">Repositories</TableHead>
                     <TableHead className="text-right">Manifest files</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -56,7 +56,7 @@ export default async function DependenciesPage({ searchParams = Promise.resolve(
                       key={`${dependency.name}:${dependency.version}:${dependency.raw}:${index}`}
                     >
                       <TableCell className="font-medium">{dependencyDisplayName(dependency)}</TableCell>
-                      <TableCell className="text-right">{dependency.repository_count}</TableCell>
+                      <TableCell>{dependency.ecosystem || "Unspecified"}</TableCell><TableCell className="text-right">{dependency.repository_count}</TableCell>
                       <TableCell className="text-right">{dependency.manifest_file_count}</TableCell>
                     </TableRow>
                   ))}

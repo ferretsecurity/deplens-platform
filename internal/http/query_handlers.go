@@ -39,8 +39,13 @@ type QueryStore interface {
 	UpdateScanMetadata(ctx context.Context, tenantID string, scanID string, labels map[string]string, annotation string) error
 }
 
+type QueryIdentityStore interface {
+	TokenLookup
+	ListMemberships(context.Context, string) ([]store.MembershipRecord, error)
+}
+
 type ProductionQueryService struct {
-	Lookup    TokenLookup
+	Lookup    QueryIdentityStore
 	Reads     QueryStore
 	Sessions  *scs.SessionManager
 	Artifacts blob.Reader
@@ -62,7 +67,7 @@ func newBadRequestError(err error) error {
 	return badRequestError{err: err}
 }
 
-func NewProductionQueryService(lookup TokenLookup, reads QueryStore, sessions *scs.SessionManager, artifacts blob.Reader) ProductionQueryService {
+func NewProductionQueryService(lookup QueryIdentityStore, reads QueryStore, sessions *scs.SessionManager, artifacts blob.Reader) ProductionQueryService {
 	return ProductionQueryService{
 		Lookup:    lookup,
 		Reads:     reads,
@@ -237,8 +242,15 @@ func (s ProductionQueryService) authorizeWrite(r *http.Request, token string) (t
 	if tenantID == "" {
 		return "", "", nil, errUnauthorized
 	}
-	role = s.Sessions.GetString(r.Context(), "role")
-	return tenantID, role, nil, nil
+	memberships, lookupErr := s.Lookup.ListMemberships(r.Context(), s.Sessions.GetString(r.Context(), "user_id"))
+	if lookupErr == nil {
+		for _, membership := range memberships {
+			if membership.TenantID == tenantID {
+				return tenantID, membership.Role, nil, nil
+			}
+		}
+	}
+	return "", "", nil, errUnauthorized
 }
 
 func NewServer(upload UploadService, query QueryService) http.Handler {
