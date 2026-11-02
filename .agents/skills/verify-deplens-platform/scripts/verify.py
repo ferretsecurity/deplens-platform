@@ -56,7 +56,7 @@ def main():
         run('corepack', 'pnpm', 'install', '--frozen-lockfile', cwd=ROOT)
         run('corepack', 'pnpm', '--dir', 'apps/web', 'exec', 'playwright', 'install', 'chromium', cwd=ROOT)
         run('go', 'build', '-o', str(scratch / 'api'), './cmd/deplens-platform', cwd=ROOT)
-        shutil.copytree(ROOT / 'apps/web', scratch / 'web', ignore=shutil.ignore_patterns('node_modules', '.next', 'test-results', 'playwright-report'))
+        shutil.copytree(ROOT / 'apps/web', scratch / 'web', ignore=shutil.ignore_patterns('node_modules', '.next', '.next-dev', 'test-results', 'playwright-report'))
         (scratch / 'web/node_modules').symlink_to(ROOT / 'apps/web/node_modules', target_is_directory=True)
         run('docker', 'run', '-d', '--name', container, '-e', 'POSTGRES_PASSWORD=verification', '-e', 'POSTGRES_DB=deplens', '-p', '127.0.0.1::5432', 'postgres:17', stdout=subprocess.DEVNULL)
         created = True
