@@ -1,23 +1,12 @@
 import React from "react";
 import { SocketInventoryView } from "@/components/socket-inventory";
 import { RepositorySources } from "@/components/repository-sources";
+import { ManifestComparison } from "@/components/manifest-comparison";
 import { fetchCurrentUserServer } from "@/lib/auth.server";
 import Link from "next/link";
 
 import { getRepositoryInventoryServer, listRepositoryManifestsServer } from "@/lib/queries";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from "@/components/ui/table";
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleString();
-}
 
 export default async function RepositoryManifestsPage({
   params
@@ -71,34 +60,7 @@ export default async function RepositoryManifestsPage({
           <div className="mb-4">
             <RepositorySources repository={repository} />
           </div>
-          {manifests.items.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-sm text-slate-600">
-              No CLI manifest files found for this repository.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Path</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>First seen</TableHead>
-                  <TableHead>Last seen</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {manifests.items.map((manifest) => (
-                  <TableRow key={manifest.id}>
-                    <TableCell className="font-medium">{manifest.path}</TableCell>
-                    <TableCell className={manifest.is_active ? "text-slate-900" : "text-slate-500"}>
-                      {manifest.is_active ? "Active" : "Disappeared"}
-                    </TableCell>
-                    <TableCell>{formatDate(manifest.first_seen_at)}</TableCell>
-                    <TableCell>{formatDate(manifest.last_seen_at)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+          <ManifestComparison manifests={manifests.items} sources={inventory.sources} />
         </CardContent>
       </Card>
       <SocketInventoryView

@@ -23,6 +23,9 @@ For local development, set `DEV_LOGIN_PREFILL=true` and pass `BOOTSTRAP_OWNER_EM
 and `BOOTSTRAP_OWNER_PASSWORD` to the web process to prefill the login form.
 Prefill is disabled outside development mode.
 
+For automatic startup and source reloads on a Linux or WSL workstation, see
+[Run the development services](deploy/dev/README.md).
+
 ## First login
 
 ```bash
