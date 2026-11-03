@@ -33,6 +33,7 @@ type AppShellProps = {
 
 const navItems = [
   { href: "/app/repositories", label: "Repositories", icon: FolderKanban },
+  { href: "/app/packages", label: "Packages", icon: PackageSearch },
   { href: "/app/dependencies", label: "Dependencies", icon: PackageSearch, Plug },
   { href: "/app/scans", label: "Scans", icon: ScanLine },
   { href: "/app/tokens", label: "API Tokens", icon: KeyRound }

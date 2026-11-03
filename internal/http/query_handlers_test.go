@@ -248,10 +248,22 @@ func (fakeTokenLookup) FindToken(_ context.Context, tokenHash string) (string, [
 }
 
 type fakeQueryStore struct {
+	listPackagesCalls            int
+	listPackagesFilter           store.PackageListFilter
 	listRepositoriesCalls        int
 	listRepositoriesFilter       store.RepositoryListFilter
 	listScansCalls               int
 	listRepositoryManifestsCalls int
+}
+
+func (f *fakeQueryStore) ListPackages(_ context.Context, filter store.PackageListFilter) (store.PackageListPage, error) {
+	f.listPackagesCalls++
+	f.listPackagesFilter = filter
+	return store.PackageListPage{
+		Items:      []store.PackageUsageItem{{Source: "cli", Name: "react", Version: "19.1.0", RepositoryID: "11111111-1111-1111-1111-111111111111", RepositoryName: "Repo"}},
+		Pagination: store.PaginationMetadata{Page: filter.Page, PageSize: filter.PageSize, Total: 1, TotalPages: 1},
+		Filters:    store.PackageFilters{Query: filter.Query},
+	}, nil
 }
 
 func (*fakeQueryStore) GetScanArtifactKey(_ context.Context, tenantID string, scanID string) (string, error) {

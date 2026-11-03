@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { serverApiFetch } from "./api";
 import { env } from "./env";
 import { parseScannerReportResponse } from "./scanner-report";
+import { packageListResponseSchema } from "./packages";
 import type {
   APITokenMetadata,
   DependencyListItem,
@@ -63,6 +64,19 @@ export async function listDependenciesServer() {
   return serverApiFetch<{ items: DependencyListItem[] }>(`${env.API_INTERNAL_BASE_URL}/api/v1/dependencies`, {
     headers: await cookieHeaders()
   });
+}
+
+export async function listPackagesServer(params: { q: string; page: number; page_size: number }) {
+  const searchParams = new URLSearchParams({
+    q: params.q,
+    page: String(params.page),
+    page_size: String(params.page_size)
+  });
+  const response = await serverApiFetch<unknown>(
+    `${env.API_INTERNAL_BASE_URL}/api/v1/packages?${searchParams.toString()}`,
+    { headers: await cookieHeaders() }
+  );
+  return packageListResponseSchema.parse(response);
 }
 
 export async function listScansServer(repositoryId: string, from: string, to: string) {

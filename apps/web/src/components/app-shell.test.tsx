@@ -29,5 +29,6 @@ describe("AppShell", () => {
     );
 
     expect(screen.getAllByRole("link", { name: /api tokens/i })[0]).toHaveAttribute("href", "/app/tokens");
+    expect(screen.getAllByRole("link", { name: /^packages$/i })[0]).toHaveAttribute("href", "/app/packages");
   });
 });

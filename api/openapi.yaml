@@ -308,6 +308,35 @@ components:
           $ref: "#/components/schemas/PaginationMetadata"
         filters:
           $ref: "#/components/schemas/RepositoryListFilters"
+    PackageListResponse:
+      type: object
+      required: [items, pagination, filters]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PackageUsage"
+        pagination:
+          $ref: "#/components/schemas/PaginationMetadata"
+        filters:
+          type: object
+          required: [q]
+          properties:
+            q: {type: string}
+    PackageUsage:
+      type: object
+      required: [source, name, version, constraint, ecosystem, repository_id, repository_name, manifest_path]
+      properties:
+        source: {type: string, enum: [cli, socket, snyk]}
+        name: {type: string, minLength: 1}
+        version: {type: string}
+        constraint: {type: string}
+        ecosystem: {type: string}
+        repository_id: {type: string, format: uuid}
+        repository_name: {type: string}
+        manifest_path:
+          type: [string, "null"]
+          description: Null when the source does not report a manifest file.
     PaginationMetadata:
       type: object
       required: [page, page_size, total, total_pages, has_previous, has_next]
@@ -821,6 +850,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RepositoryManifestListResponse"
+  /api/v1/packages:
+    get:
+      summary: Browse package usages for the current tenant
+      description: >-
+        Lists named packages in active CLI manifests and available Socket and Snyk
+        snapshots. Identical usage rows are returned once. Different sources,
+        versions, constraints, ecosystems, repositories and manifest paths remain
+        separate usages. Repository IDs and names use the linked inventory repository.
+      parameters:
+        - in: query
+          name: q
+          required: false
+          schema: {type: string, maxLength: 200}
+          description: Literal case-insensitive substring search on the package name. Surrounding whitespace is removed.
+        - in: query
+          name: page
+          required: false
+          schema: {type: integer, minimum: 1, default: 1}
+        - in: query
+          name: page_size
+          required: false
+          schema: {type: integer, minimum: 1, maximum: 100, default: 25}
+      responses:
+        "200":
+          description: Package usages with pagination totals, including empty pages.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PackageListResponse"
+        "400":
+          description: Invalid query length or pagination, including an offset outside the supported integer range.
+        "401":
+          description: A tenant session or bearer token with scan:read is required.
   /api/v1/dependencies:
     get:
       summary: List active dependencies for the current tenant

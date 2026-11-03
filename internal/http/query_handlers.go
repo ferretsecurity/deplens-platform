@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/ferretsecurity/deplens-platform/internal/auth"
@@ -21,6 +23,7 @@ type QueryService interface {
 	ListRepositories(r *http.Request, token string) (any, error)
 	ListRepositoryManifests(r *http.Request, token string) (any, error)
 	ListDependencies(r *http.Request, token string) (any, error)
+	ListPackages(r *http.Request, token string) (any, error)
 	ListScans(r *http.Request, token string) (any, error)
 	GetScan(r *http.Request, token string) (any, error)
 	GetScanReport(r *http.Request, token string) (any, error)
@@ -32,6 +35,7 @@ type QueryStore interface {
 	ListRepositories(ctx context.Context, filter store.RepositoryListFilter) (store.RepositoryListPage, error)
 	ListRepositoryManifests(ctx context.Context, tenantID string, repositoryID string) ([]store.RepositoryManifestItem, error)
 	ListDependencies(ctx context.Context, tenantID string) ([]store.DependencyListItem, error)
+	ListPackages(ctx context.Context, filter store.PackageListFilter) (store.PackageListPage, error)
 	ListScans(ctx context.Context, filter store.ScanFilter) ([]store.ScanListItem, error)
 	GetScan(ctx context.Context, tenantID string, scanID string) (store.ScanListItem, error)
 	GetScanArtifactKey(ctx context.Context, tenantID string, scanID string) (string, error)
@@ -118,6 +122,34 @@ func (s ProductionQueryService) ListDependencies(r *http.Request, token string) 
 		return nil, err
 	}
 	return map[string]any{"items": items}, nil
+}
+
+func (s ProductionQueryService) ListPackages(r *http.Request, token string) (any, error) {
+	tenantID, _, err := s.authorizeRead(r, token)
+	if err != nil {
+		return nil, errUnauthorized
+	}
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	if utf8.RuneCountInString(query) > 200 {
+		return nil, newBadRequestError(fmt.Errorf("q must be at most 200 characters"))
+	}
+	page, err := parsePositiveIntQuery(r, "page", 1)
+	if err != nil {
+		return nil, newBadRequestError(err)
+	}
+	pageSize, err := parsePositiveIntQuery(r, "page_size", store.DefaultPackagePageSize)
+	if err != nil {
+		return nil, newBadRequestError(err)
+	}
+	if pageSize > 100 {
+		return nil, newBadRequestError(fmt.Errorf("page_size must be between 1 and 100"))
+	}
+	if int64(page-1) > math.MaxInt64/int64(pageSize) {
+		return nil, newBadRequestError(fmt.Errorf("page is out of range"))
+	}
+	return s.Reads.ListPackages(r.Context(), store.PackageListFilter{
+		TenantID: tenantID, Query: query, Page: page, PageSize: pageSize,
+	})
 }
 
 func (s ProductionQueryService) ListScans(r *http.Request, token string) (any, error) {
@@ -276,6 +308,9 @@ func NewQueryRouter(service QueryService) http.Handler {
 	})
 	mux.HandleFunc("GET /api/v1/dependencies", func(w http.ResponseWriter, r *http.Request) {
 		writeJSONResult(w, r, service.ListDependencies)
+	})
+	mux.HandleFunc("GET /api/v1/packages", func(w http.ResponseWriter, r *http.Request) {
+		writeJSONResult(w, r, service.ListPackages)
 	})
 	mux.HandleFunc("GET /api/v1/scans", func(w http.ResponseWriter, r *http.Request) {
 		writeJSONResult(w, r, service.ListScans)
