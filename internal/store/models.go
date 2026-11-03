@@ -53,14 +53,15 @@ type UploadManifestParams struct {
 }
 
 type UploadDependencyParams struct {
-	Position   int
-	Raw        string
-	Name       string
-	Version    string
-	Constraint string
-	Section    string
-	Source     string
-	Extras     map[string]string
+	PackageType string
+	Position    int
+	Raw         string
+	Name        string
+	Version     string
+	Constraint  string
+	Section     string
+	Source      string
+	Extras      map[string]string
 }
 
 type ScanManifestItem struct {
@@ -73,14 +74,15 @@ type ScanManifestItem struct {
 }
 
 type ManifestDependencyItem struct {
-	ID         string            `json:"id"`
-	Raw        string            `json:"raw"`
-	Name       string            `json:"name"`
-	Version    string            `json:"version"`
-	Constraint string            `json:"constraint"`
-	Section    string            `json:"section"`
-	Source     string            `json:"source"`
-	Extras     map[string]string `json:"extras"`
+	PackageType string            `json:"package_type"`
+	ID          string            `json:"id"`
+	Raw         string            `json:"raw"`
+	Name        string            `json:"name"`
+	Version     string            `json:"version"`
+	Constraint  string            `json:"constraint"`
+	Section     string            `json:"section"`
+	Source      string            `json:"source"`
+	Extras      map[string]string `json:"extras"`
 }
 
 type DependencyListItem struct {

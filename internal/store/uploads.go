@@ -195,10 +195,10 @@ func insertManifestDependencies(ctx context.Context, tx pgx.Tx, scanManifestID s
 
 		_, err = tx.Exec(ctx, `
 			insert into manifest_dependencies (
-				scan_manifest_id, position, raw, name, version, "constraint", section, source, extras
+				scan_manifest_id, position, raw, name, version, "constraint", section, source, extras, package_type
 			)
-			values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
-		`, scanManifestID, dependency.Position, dependency.Raw, dependency.Name, dependency.Version, dependency.Constraint, dependency.Section, dependency.Source, string(extrasJSON))
+			values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10)
+		`, scanManifestID, dependency.Position, dependency.Raw, dependency.Name, dependency.Version, dependency.Constraint, dependency.Section, dependency.Source, string(extrasJSON), dependency.PackageType)
 		if err != nil {
 			return err
 		}

@@ -19,6 +19,7 @@ type scannerSource struct {
 		Extraction string `json:"extraction"`
 	} `json:"analysis"`
 	Dependencies []struct {
+		PackageType       string            `json:"package_type"`
 		Raw               string            `json:"raw"`
 		Name              string            `json:"name"`
 		Version           string            `json:"version"`
@@ -87,7 +88,7 @@ func SnapshotFromReport(payload json.RawMessage) (SnapshotInput, error) {
 		}
 		for _, dependency := range source.Dependencies {
 			manifest.Dependencies = append(manifest.Dependencies, DependencyInput{
-				Raw: dependency.Raw, Name: dependency.Name, Version: dependency.Version,
+				PackageType: dependency.PackageType, Raw: dependency.Raw, Name: dependency.Name, Version: dependency.Version,
 				Constraint: dependency.VersionConstraint, Section: dependency.SourceGroup,
 				Source: dependency.OriginKind, Extras: dependency.Attributes,
 			})

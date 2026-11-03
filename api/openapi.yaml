@@ -177,6 +177,10 @@ components:
           items:
             type: object
             additionalProperties: true
+            properties:
+              package_type:
+                type: string
+                description: Package ecosystem. Preserved verbatim; missing means unspecified.
         diagnostics:
           type: [array, "null"]
           items:
@@ -264,6 +268,9 @@ components:
       type: object
       required: [raw]
       properties:
+        package_type:
+          type: string
+          description: Package ecosystem supplied by the scanner. Empty means unspecified.
         raw:
           type: string
         name:
@@ -420,10 +427,13 @@ components:
             $ref: "#/components/schemas/ManifestDependency"
     ManifestDependency:
       type: object
-      required: [id, raw, name, version, constraint, section, source, extras]
+      required: [id, raw, name, version, constraint, section, source, extras, package_type]
       properties:
         id:
           type: string
+        package_type:
+          type: string
+          description: Package ecosystem supplied by the scanner. Empty means unspecified.
         raw:
           type: string
         name:

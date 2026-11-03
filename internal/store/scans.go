@@ -212,7 +212,7 @@ func (s ScanStore) ListDependencies(ctx context.Context, tenantID string) ([]Dep
 		with active_dependencies as (
 			select
 				d.id::text as id,
-				''::text as			ecosystem,
+				d.package_type as ecosystem,
 				d.raw,
 				d.name,
 				d.version,
@@ -378,7 +378,7 @@ func (s ScanStore) ListScanManifests(ctx context.Context, tenantID string, scanI
 	}
 
 	depRows, err := s.DB.Query(ctx, `
-		select d.id, d.scan_manifest_id, d.raw, d.name, d.version, d."constraint", d.section, d.source, d.extras
+		select d.id, d.scan_manifest_id, d.raw, d.name, d.version, d."constraint", d.section, d.source, d.extras, d.package_type
 		from manifest_dependencies d
 		where d.scan_manifest_id = any($1::uuid[])
 		order by d.scan_manifest_id asc, d.position asc
@@ -392,7 +392,7 @@ func (s ScanStore) ListScanManifests(ctx context.Context, tenantID string, scanI
 		var manifestID string
 		var dependency ManifestDependencyItem
 		var extrasJSON []byte
-		if err := depRows.Scan(&dependency.ID, &manifestID, &dependency.Raw, &dependency.Name, &dependency.Version, &dependency.Constraint, &dependency.Section, &dependency.Source, &extrasJSON); err != nil {
+		if err := depRows.Scan(&dependency.ID, &manifestID, &dependency.Raw, &dependency.Name, &dependency.Version, &dependency.Constraint, &dependency.Section, &dependency.Source, &extrasJSON, &dependency.PackageType); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal(extrasJSON, &dependency.Extras); err != nil {
