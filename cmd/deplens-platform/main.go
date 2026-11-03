@@ -58,6 +58,8 @@ func main() {
 	defer stop()
 	workerDone := make(chan struct{})
 	go func() { defer close(workerDone); application.Socket.Work(ctx) }()
+	snykDone := make(chan struct{})
+	go func() { defer close(snykDone); application.Snyk.Work(ctx) }()
 	server := &http.Server{Addr: cfg.HTTPAddress, Handler: application.Handler, ReadHeaderTimeout: 10 * time.Second}
 	go func() {
 		<-ctx.Done()
@@ -72,4 +74,5 @@ func main() {
 	}
 	stop()
 	<-workerDone
+	<-snykDone
 }

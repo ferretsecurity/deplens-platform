@@ -32,7 +32,9 @@ export const inventoryRepositorySchema = z.object({
   default_branch: z.string(),
   cli: z.boolean(),
   socket: z.boolean(),
-  socket_url: z.string()
+  socket_url: z.string(),
+  snyk: z.boolean().optional(),
+  snyk_url: z.string().optional()
 });
 export const socketInventorySchema = z.object({
   repository: inventoryRepositorySchema,

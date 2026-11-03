@@ -16,6 +16,8 @@ export type RepositoryListItem = {
  cli?: boolean;
  socket?: boolean;
  socket_url?: string;
+ snyk?: boolean;
+ snyk_url?: string;
   id: string;
   name: string;
   url: string;

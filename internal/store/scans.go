@@ -31,6 +31,8 @@ type RepositoryListItem struct {
 	CLI           bool   `json:"cli"`
 	Socket        bool   `json:"socket"`
 	SocketURL     string `json:"socket_url"`
+	Snyk          bool   `json:"snyk"`
+	SnykURL       string `json:"snyk_url"`
 }
 
 type RepositoryListFilter struct {
@@ -87,7 +89,7 @@ func (s ScanStore) ListRepositories(ctx context.Context, filter RepositoryListFi
 
 	rows, err := s.DB.Query(ctx, `
 		with filtered as (
-			select r.id, r.name, r.url, r.default_branch, r.cli, r.socket, r.socket_url
+			select r.id, r.name, r.url, r.default_branch, r.cli, r.socket, r.socket_url, r.snyk, r.snyk_url
 			from inventory_repositories r
 			where r.tenant_id = $1
 			  and (
@@ -100,7 +102,7 @@ func (s ScanStore) ListRepositories(ctx context.Context, filter RepositoryListFi
 			select count(*) as total
 			from filtered
 		)
-		select f.id, f.name, f.url, f.default_branch, f.cli, f.socket, f.socket_url, c.total
+		select f.id, f.name, f.url, f.default_branch, f.cli, f.socket, f.socket_url, f.snyk, f.snyk_url, c.total
 		from filtered f
 		cross join counted c
 		order by lower(f.name) asc, f.id asc
@@ -115,7 +117,7 @@ func (s ScanStore) ListRepositories(ctx context.Context, filter RepositoryListFi
 	total := 0
 	for rows.Next() {
 		var item RepositoryListItem
-		if err := rows.Scan(&item.ID, &item.Name, &item.URL, &item.DefaultBranch, &item.CLI, &item.Socket, &item.SocketURL, &total); err != nil {
+		if err := rows.Scan(&item.ID, &item.Name, &item.URL, &item.DefaultBranch, &item.CLI, &item.Socket, &item.SocketURL, &item.Snyk, &item.SnykURL, &total); err != nil {
 			return RepositoryListPage{}, err
 		}
 		items = append(items, item)
@@ -232,6 +234,16 @@ func (s ScanStore) ListDependencies(ctx context.Context, tenantID string) ([]Dep
 			coalesce(sr.cli_repository_id,sr.id),
 			(coalesce(a->>'name','')<>'' and coalesce(a->>'version','')<>'')
 			from socket_repositories sr join socket_connections c on c.id=sr.connection_id
+			cross join lateral jsonb_array_elements(sr.snapshot->'artifacts') a
+			left join lateral jsonb_array_elements(a->'manifestFiles') ref on true
+			where c.tenant_id=$1 and sr.available
+			union all
+			select sr.id::text || ':' || (a->>'id'), coalesce(a->>'type',''), ''::text,
+			coalesce(a->>'name',''), coalesce(a->>'version',''), ''::text,
+			case when ref->>'file' is not null then sr.id::text||':'||(ref->>'file') end,
+			coalesce(sr.cli_repository_id,(select linked.cli_repository_id from socket_repositories linked where linked.id=sr.socket_repository_id),sr.socket_repository_id,sr.id),
+			(coalesce(a->>'name','')<>'' and coalesce(a->>'version','')<>'')
+			from snyk_repositories sr join snyk_connections c on c.id=sr.connection_id
 			cross join lateral jsonb_array_elements(sr.snapshot->'artifacts') a
 			left join lateral jsonb_array_elements(a->'manifestFiles') ref on true
 			where c.tenant_id=$1 and sr.available

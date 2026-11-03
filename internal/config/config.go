@@ -19,11 +19,13 @@ type Config struct {
 	TrustProxy             bool
 	MigrateOnStart         bool
 	SocketEncryptionKey    string
+	SnykEncryptionKey      string
 }
 
 func Load() (Config, error) {
 	cfg := Config{
 		SocketEncryptionKey:    os.Getenv("SOCKET_ENCRYPTION_KEY"),
+		SnykEncryptionKey:      os.Getenv("SNYK_ENCRYPTION_KEY"),
 		HTTPAddress:            getEnv("HTTP_ADDRESS", ":8080"),
 		Mode:                   getEnv("DEPLOYMENT_MODE", "self-hosted"),
 		DatabaseURL:            os.Getenv("DATABASE_URL"),

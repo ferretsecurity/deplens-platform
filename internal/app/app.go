@@ -15,6 +15,7 @@ import (
 	"github.com/ferretsecurity/deplens-platform/internal/config"
 	httpapi "github.com/ferretsecurity/deplens-platform/internal/http"
 	"github.com/ferretsecurity/deplens-platform/internal/scans"
+	"github.com/ferretsecurity/deplens-platform/internal/snyk"
 	"github.com/ferretsecurity/deplens-platform/internal/socket"
 	"github.com/ferretsecurity/deplens-platform/internal/store"
 )
@@ -25,6 +26,7 @@ type App struct {
 	BlobStore blob.Store
 	Handler   http.Handler
 	Socket    *socket.Service
+	Snyk      *snyk.Service
 }
 
 func New(cfg config.Config) (*App, error) {
@@ -76,9 +78,23 @@ func New(cfg config.Config) (*App, error) {
 		}
 	}
 	socketService := &socket.Service{DB: db, Client: socket.NewClient(), Vault: vault}
+	var snykVault *socket.Vault
+	if cfg.SnykEncryptionKey != "" {
+		snykVault, err = socket.NewVault(cfg.SnykEncryptionKey)
+		if err != nil {
+			db.Close()
+			return nil, fmt.Errorf("invalid Snyk encryption key: %w", err)
+		}
+	}
+	snykService := &snyk.Service{DB: db, Client: snyk.NewClient(), Vault: snykVault}
+	snykRouter := httpapi.NewSnykRouter(sessionManager, snykService, cfg.AppBaseURL)
 	socketRouter := httpapi.NewSocketRouter(sessionManager, socketService, cfg.AppBaseURL)
 	routes := routeAuthAndAPI(authRouter, tokenRouter, apiRouter)
 	appHandler := sessionManager.LoadAndSave(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/v1/integrations/snyk") || (strings.HasPrefix(r.URL.Path, "/api/v1/repositories/") && strings.HasSuffix(r.URL.Path, "/snyk-inventory")) {
+			snykRouter.ServeHTTP(w, r)
+			return
+		}
 		if strings.HasPrefix(r.URL.Path, "/api/v1/integrations/socket") || (strings.HasPrefix(r.URL.Path, "/api/v1/repositories/") && strings.HasSuffix(r.URL.Path, "/inventory")) {
 			socketRouter.ServeHTTP(w, r)
 			return
@@ -90,6 +106,7 @@ func New(cfg config.Config) (*App, error) {
 	return &App{
 		Config:    cfg,
 		Socket:    socketService,
+		Snyk:      snykService,
 		DB:        db,
 		BlobStore: blobStore,
 		Handler:   handler,

@@ -72,7 +72,7 @@ export default async function RepositoriesPage({
       <Card className="border-slate-200/80 bg-white/80 shadow-sm backdrop-blur">
         <CardHeader>
           <CardTitle>Repositories</CardTitle>
-          <CardDescription>Browse repositories imported from the CLI and Socket.</CardDescription>
+          <CardDescription>Browse repositories imported from the CLI, Socket and Snyk.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <form className="flex flex-col gap-3 sm:flex-row" method="get">

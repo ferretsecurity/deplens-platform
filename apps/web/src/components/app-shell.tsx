@@ -50,7 +50,7 @@ export function AppShell({ user, children }: AppShellProps) {
 
   const nav = (
     <nav className="flex flex-col gap-1">
-      {[...navItems, ...(user.role === "owner" || user.role === "admin" ? [{href: "/app/integrations/socket", label: "Socket integration", icon: Plug}] : [])].map((item) => {
+      {[...navItems, ...(user.role === "owner" || user.role === "admin" ? [{href: "/app/integrations/socket", label: "Socket integration", icon: Plug}, {href: "/app/integrations/snyk", label: "Snyk integration", icon: Plug}] : [])].map((item) => {
         const active = pathname.startsWith(item.href);
         const Icon = item.icon;
         return (

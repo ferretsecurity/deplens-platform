@@ -1,3 +1,4 @@
+import { SnykInventoryView } from "@/components/snyk-inventory";
 import React from "react";
 import { SocketInventoryView } from "@/components/socket-inventory";
 import { RepositorySources } from "@/components/repository-sources";
@@ -5,7 +6,7 @@ import { ManifestComparison } from "@/components/manifest-comparison";
 import { fetchCurrentUserServer } from "@/lib/auth.server";
 import Link from "next/link";
 
-import { getRepositoryInventoryServer, listRepositoryManifestsServer } from "@/lib/queries";
+import { getRepositoryInventoryServer, getRepositorySnykInventoryServer, listRepositoryManifestsServer } from "@/lib/queries";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function RepositoryManifestsPage({
@@ -16,12 +17,13 @@ export default async function RepositoryManifestsPage({
   }>;
 }) {
   const { repositoryId } = await params;
-  const [inventory, manifests, user] = await Promise.all([
+  const [inventory, manifests, user, snykInventory] = await Promise.all([
     getRepositoryInventoryServer(repositoryId),
     listRepositoryManifestsServer(repositoryId),
-    fetchCurrentUserServer()
+    fetchCurrentUserServer(),
+    getRepositorySnykInventoryServer(repositoryId)
   ]);
-  const repository = inventory.repository;
+  const repository = snykInventory.repository;
 
   return (
     <section className="space-y-6">
@@ -60,9 +62,10 @@ export default async function RepositoryManifestsPage({
           <div className="mb-4">
             <RepositorySources repository={repository} />
           </div>
-          <ManifestComparison manifests={manifests.items} sources={inventory.sources} />
+          <ManifestComparison manifests={manifests.items} sources={inventory.sources} snykSources={snykInventory.sources} />
         </CardContent>
       </Card>
+      <SnykInventoryView sources={snykInventory.sources} />
       <SocketInventoryView
         sources={inventory.sources}
         admin={user.role === "owner" || user.role === "admin"}

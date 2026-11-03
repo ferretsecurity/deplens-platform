@@ -2,6 +2,7 @@ import React from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { RepositoryManifestItem } from "@/lib/types";
+import type { SnykInventory } from "@/lib/snyk";
 import type { SocketInventory } from "@/lib/socket";
 import { ManifestComparison } from "./manifest-comparison";
 
@@ -31,7 +32,7 @@ describe("ManifestComparison", () => {
     />);
     const table = screen.getByRole("table", { name: "Manifest file comparison" });
     expect(within(table).getAllByRole("columnheader").map((cell) => cell.textContent))
-      .toEqual(["Path", "Deplens", "Socket"]);
+      .toEqual(["Path", "Deplens", "Socket", "Snyk"]);
     const shared = within(table).getByRole("row", { name: /shared\/package.json/ });
     expect(within(shared).getByText("Active")).toBeVisible();
     expect(within(shared).getByText("Detected")).toBeVisible();
@@ -77,4 +78,37 @@ describe("ManifestComparison", () => {
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "missing" } });
     expect(screen.getByText("No manifest paths match.")).toBeVisible();
   });
+});
+
+function snykSource(files: string[]): SnykInventory["sources"][number] {
+  return {
+    id: "snyk-1", available: true, error: "", synced_at: null,
+    snapshot: {
+      files, artifacts: [], projects: [],
+      metadata: { branch: "main", commit_hash: "", integration_repo_url: "", html_report_url: "", incomplete: false }
+    }
+  };
+}
+
+it("aligns all three providers, retains Snyk-only paths, and flags incomplete inventories", () => {
+  render(<ManifestComparison manifests={[manifest("shared.json")]}
+    sources={[source(["shared.json", "socket.json"])]}
+    snykSources={[{ ...snykSource(["shared.json", "snyk.json"]), available: false }]} />);
+  const shared = screen.getByRole("row", { name: /shared.json/ });
+  expect(within(shared).getAllByRole("cell").map((cell) => cell.textContent)).toEqual([
+    "shared.json", expect.stringContaining("Active"), "Detected", "Detected in unavailable source"
+  ]);
+  const snykOnly = screen.getByRole("row", { name: /snyk.json/ });
+  expect(within(snykOnly).getAllByRole("cell").map((cell) => cell.textContent)).toEqual([
+    "snyk.json", "Not found", "Not found in imported files", "Detected in unavailable source"
+  ]);
+  expect(screen.getByText(/Some Snyk sources are unavailable/)).toBeVisible();
+});
+
+it("shows that Snyk dependency graphs may be incomplete", () => {
+  const input = snykSource(["package.json"]);
+  render(<ManifestComparison manifests={[]} sources={[]} snykSources={[{
+    ...input, snapshot: input.snapshot && { ...input.snapshot, metadata: { ...input.snapshot.metadata, incomplete: true } }
+  }]} />);
+  expect(screen.getByText(/Snyk includes projects without dependency graphs/)).toBeVisible();
 });

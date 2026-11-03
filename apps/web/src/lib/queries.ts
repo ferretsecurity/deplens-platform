@@ -1,3 +1,4 @@
+import { snykInventorySchema } from "./snyk";
 import { socketInventorySchema } from "./socket";
 import { cookies } from "next/headers";
 
@@ -107,4 +108,9 @@ export async function getScanReportServer(scanId: string) {
 export async function getRepositoryInventoryServer(repositoryId: string) {
   const response = await serverApiFetch<unknown>(`${env.API_INTERNAL_BASE_URL}/api/v1/repositories/${repositoryId}/inventory`, {headers: await cookieHeaders()});
   return socketInventorySchema.parse(response);
+}
+
+export async function getRepositorySnykInventoryServer(repositoryId: string) {
+  const response = await serverApiFetch<unknown>(`${env.API_INTERNAL_BASE_URL}/api/v1/repositories/${repositoryId}/snyk-inventory`, { headers: await cookieHeaders() });
+  return snykInventorySchema.parse(response);
 }

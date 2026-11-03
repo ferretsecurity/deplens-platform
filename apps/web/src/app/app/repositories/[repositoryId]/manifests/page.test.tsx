@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/queries", () => ({
   getRepositoryInventoryServer: mocks.getRepositoryInventoryServer,
+  getRepositorySnykInventoryServer: vi.fn().mockResolvedValue({ repository: { id: "repo-1", name: "Repo One", url: "https://example.com/repo.git", default_branch: "main", cli: true, socket: false, socket_url: "", snyk: true, snyk_url: "https://app.snyk.io/org/test" }, sources: [] }),
   listRepositoryManifestsServer: mocks.listRepositoryManifestsServer
 }));
 
@@ -58,6 +59,7 @@ describe("RepositoryManifestsPage", () => {
       "/app/repositories"
     );
     expect(screen.getByText("Repo One")).toBeInTheDocument();
+    expect(screen.getByLabelText("Open Snyk dashboard")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "https://example.com/repo.git" })).toHaveAttribute(
       "href",
       "https://example.com/repo.git"
