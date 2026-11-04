@@ -39,14 +39,15 @@ func (s Service) Upload(ctx context.Context, tenantID string, input UploadReques
 		dependencies := make([]store.UploadDependencyParams, 0, len(manifest.Dependencies))
 		for dependencyIdx, dependency := range manifest.Dependencies {
 			dependencies = append(dependencies, store.UploadDependencyParams{
-				Position:   dependencyIdx,
-				Raw:        dependency.Raw,
-				Name:       dependency.Name,
-				Version:    dependency.Version,
-				Constraint: dependency.Constraint,
-				Section:    dependency.Section,
-				Source:     dependency.Source,
-				Extras:     dependency.Extras,
+				Position:    dependencyIdx,
+				PackageType: dependency.PackageType,
+				Raw:         dependency.Raw,
+				Name:        dependency.Name,
+				Version:     dependency.Version,
+				Constraint:  dependency.Constraint,
+				Section:     dependency.Section,
+				Source:      dependency.Source,
+				Extras:      dependency.Extras,
 			})
 		}
 		manifests = append(manifests, store.UploadManifestParams{

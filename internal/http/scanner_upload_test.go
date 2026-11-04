@@ -43,6 +43,7 @@ func TestNativeScannerUploadPreservesReportAndProjectsInventory(t *testing.T) {
 	require.Nil(t, manifests[1].HasDependencies)
 	require.Equal(t, "warning [partial]: Partial extraction", manifests[0].Warnings[0])
 	dependency := manifests[0].Dependencies[0]
+	require.Equal(t, "npm", dependency.PackageType)
 	require.Equal(t, "^19", dependency.Constraint)
 	require.Equal(t, "dependencies", dependency.Section)
 	require.Equal(t, "registry", dependency.Source)
@@ -160,4 +161,23 @@ func TestScanReportAcceptsSessionWithoutBearerScopes(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.JSONEq(t, `{"report":null}`, rr.Body.String())
+}
+
+func TestNativeScannerUploadKeepsMissingAndFuturePackageTypes(t *testing.T) {
+	for _, packageType := range []string{"", "unknown", "future-type"} {
+		t.Run(packageType, func(t *testing.T) {
+			body := strings.Replace(nativeReport, `"package_type":"npm",`, ``, 1)
+			if packageType != "" {
+				body = strings.Replace(nativeReport, `"package_type":"npm"`, `"package_type":"`+packageType+`"`, 1)
+			}
+			body = strings.Replace(body, `"attributes":{"custom":"value"}`, `"attributes":{"package_type":"attribute"}`, 1)
+			service := &fakeUploadService{allowedToken: "bootstrap-token"}
+			rr := httptest.NewRecorder()
+			NewRouter(service).ServeHTTP(rr, scannerUploadRequest(body))
+			require.Equal(t, http.StatusCreated, rr.Code, rr.Body.String())
+			dependency := service.lastInput.Snapshot.Manifests[0].Dependencies[0]
+			require.Equal(t, packageType, dependency.PackageType)
+			require.Equal(t, "attribute", dependency.Extras["package_type"])
+		})
+	}
 }

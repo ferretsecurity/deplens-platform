@@ -56,7 +56,7 @@ func (s ScanStore) ListPackages(ctx context.Context, filter PackageListFilter) (
 	err := s.DB.QueryRow(ctx, `
 		with usages as (
 			select 'cli'::text as source, d.name, d.version, d."constraint",
-				''::text as ecosystem,
+				d.package_type as ecosystem,
 				r.id as repository_id, nullif(m.path, '') as manifest_path
 			from manifest_dependencies d
 			join scan_manifests sm on sm.id = d.scan_manifest_id

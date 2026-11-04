@@ -27,10 +27,11 @@ func TestServiceUploadConvertsManifestsAndDependencies(t *testing.T) {
 					Warnings:        []string{"manifest warning"},
 					Dependencies: []DependencyInput{
 						{
-							Raw:    "react@19.1.0",
-							Name:   "react",
-							Source: "npm",
-							Extras: map[string]string{"scope": "ui"},
+							Raw:         "react@19.1.0",
+							PackageType: "npm",
+							Name:        "react",
+							Source:      "npm",
+							Extras:      map[string]string{"scope": "ui"},
 						},
 					},
 				},
@@ -70,6 +71,7 @@ func TestServiceUploadConvertsManifestsAndDependencies(t *testing.T) {
 	}
 
 	dependency := manifest.Dependencies[0]
+	require.Equal(t, "npm", dependency.PackageType)
 	if dependency.Position != 0 {
 		t.Fatalf("dependency position = %d, want 0", dependency.Position)
 	}
