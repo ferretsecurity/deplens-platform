@@ -2,6 +2,7 @@ import React from "react";
 import Link from "next/link";
 
 import { listPackagesServer } from "@/lib/queries";
+import type { PackageUsage } from "@/lib/packages";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,12 @@ export default async function PackagesPage({
   const { items, pagination } = await listPackagesServer({ q: query, page, page_size: pageSize });
   const firstResult = items.length ? (pagination.page - 1) * pagination.page_size + 1 : 0;
   const lastResult = items.length ? firstResult + items.length - 1 : 0;
+  const packageGroups = new Map<string, PackageUsage[]>();
+  for (const item of items) {
+    const usages = packageGroups.get(item.name);
+    if (usages) usages.push(item);
+    else packageGroups.set(item.name, [item]);
+  }
 
   return (
     <section className="space-y-6">
@@ -82,6 +89,9 @@ export default async function PackagesPage({
           </form>
           <div className="text-sm text-slate-600">
             Showing {firstResult}-{lastResult} of {pagination.total} package usages
+            {pagination.total_pages > 1 ? (
+              <p className="mt-1">Package groups may continue across pages.</p>
+            ) : null}
           </div>
           {items.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-sm text-slate-600">
@@ -92,40 +102,50 @@ export default async function PackagesPage({
                   : "No active packages found."}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table className="min-w-[720px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Package</TableHead>
-                    <TableHead>Version / constraint</TableHead>
-                    <TableHead>Ecosystem</TableHead>
-                    <TableHead>Source</TableHead>
-                    <TableHead>Repository</TableHead>
-                    <TableHead>Manifest file</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((item) => (
-                    <TableRow key={JSON.stringify(item)}>
-                      <TableCell className="font-medium">{item.name}</TableCell>
-                      <TableCell>
-                        {[item.version, item.constraint].filter(Boolean).join(" / ") || "Unspecified"}
-                      </TableCell>
-                      <TableCell>{item.ecosystem || "Unspecified"}</TableCell>
-                      <TableCell>{sourceLabels[item.source]}</TableCell>
-                      <TableCell>
-                        <Link
-                          className="font-medium text-slate-900 underline-offset-4 hover:underline"
-                          href={`/app/repositories/${item.repository_id}/manifests`}
-                        >
-                          {item.repository_name}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="break-all">{item.manifest_path ?? "Not reported"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <div className="space-y-6">
+              {Array.from(packageGroups, ([name, usages]) => (
+                <section key={name} aria-label={name} className="space-y-3">
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <h2 className="break-all text-lg font-semibold text-slate-900">{name}</h2>
+                    <p className="text-sm text-slate-600">
+                      {usages.length} {usages.length === 1 ? "usage" : "usages"} on this page
+                    </p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <Table className="min-w-[640px]">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Version / constraint</TableHead>
+                          <TableHead>Ecosystem</TableHead>
+                          <TableHead>Source</TableHead>
+                          <TableHead>Repository</TableHead>
+                          <TableHead>Manifest file</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {usages.map((item) => (
+                          <TableRow key={JSON.stringify(item)}>
+                            <TableCell>
+                              {[item.version, item.constraint].filter(Boolean).join(" / ") || "Unspecified"}
+                            </TableCell>
+                            <TableCell>{item.ecosystem || "Unspecified"}</TableCell>
+                            <TableCell>{sourceLabels[item.source]}</TableCell>
+                            <TableCell>
+                              <Link
+                                className="font-medium text-slate-900 underline-offset-4 hover:underline"
+                                href={`/app/repositories/${item.repository_id}/manifests`}
+                              >
+                                {item.repository_name}
+                              </Link>
+                            </TableCell>
+                            <TableCell className="break-all">{item.manifest_path ?? "Not reported"}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </section>
+              ))}
             </div>
           )}
           {pagination.total > 0 ? (
