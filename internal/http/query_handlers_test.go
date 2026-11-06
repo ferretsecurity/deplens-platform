@@ -262,7 +262,7 @@ func (f *fakeQueryStore) ListPackages(_ context.Context, filter store.PackageLis
 	return store.PackageListPage{
 		Items:      []store.PackageUsageItem{{Source: "cli", Name: "react", Version: "19.1.0", RepositoryID: "11111111-1111-1111-1111-111111111111", RepositoryName: "Repo"}},
 		Pagination: store.PaginationMetadata{Page: filter.Page, PageSize: filter.PageSize, Total: 1, TotalPages: 1},
-		Filters:    store.PackageFilters{Query: filter.Query},
+		Filters:    store.PackageFilters{Query: filter.Query, Version: filter.Version},
 	}, nil
 }
 

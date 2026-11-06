@@ -133,6 +133,10 @@ func (s ProductionQueryService) ListPackages(r *http.Request, token string) (any
 	if utf8.RuneCountInString(query) > 200 {
 		return nil, newBadRequestError(fmt.Errorf("q must be at most 200 characters"))
 	}
+	version := strings.TrimSpace(r.URL.Query().Get("version"))
+	if err := store.ValidatePackageVersion(version); err != nil {
+		return nil, newBadRequestError(err)
+	}
 	page, err := parsePositiveIntQuery(r, "page", 1)
 	if err != nil {
 		return nil, newBadRequestError(err)
@@ -148,7 +152,7 @@ func (s ProductionQueryService) ListPackages(r *http.Request, token string) (any
 		return nil, newBadRequestError(fmt.Errorf("page is out of range"))
 	}
 	return s.Reads.ListPackages(r.Context(), store.PackageListFilter{
-		TenantID: tenantID, Query: query, Page: page, PageSize: pageSize,
+		TenantID: tenantID, Query: query, Version: version, Page: page, PageSize: pageSize,
 	})
 }
 

@@ -110,6 +110,16 @@ func TestListPackagesSearchesCurrentUsageAcrossSources(t *testing.T) {
 		}
 	}
 
+	versionPage, err := reads.ListPackages(ctx, PackageListFilter{TenantID: tenantID, Query: "react", Version: "19"})
+	require.NoError(t, err)
+	require.Len(t, versionPage.Items, 4)
+	require.Equal(t, 4, versionPage.Pagination.Total)
+	isolated, err := reads.ListPackages(ctx, PackageListFilter{TenantID: tenantID, Version: "1"})
+	require.NoError(t, err)
+	for _, item := range isolated.Items {
+		require.NotContains(t, item.Name, "secret")
+	}
+
 	page, err := reads.ListPackages(ctx, PackageListFilter{TenantID: tenantID, Query: " REACT ", PageSize: 100})
 	require.NoError(t, err)
 	path := "package.json"
@@ -177,4 +187,54 @@ func TestListPackagesSearchesCurrentUsageAcrossSources(t *testing.T) {
 			require.Zero(t, page.Pagination.TotalPages)
 		}
 	}
+}
+
+func TestListPackagesVersionPagination(t *testing.T) {
+	ctx := context.Background()
+	db, databaseURL := openTestDatabase(t)
+	require.NoError(t, Migrate(databaseURL))
+	tenant := mustCreateTenant(t, ctx, db)
+	other := mustCreateTenantWithSlug(t, ctx, db, "other-versions")
+	for _, tenantID := range []string{tenant, other} {
+		_, err := (Store{DB: db}).CreateScan(ctx, UploadScanParams{
+			TenantID: tenantID, RepositoryName: "LiteLLM repo", URL: "https://example.com/litellm.git", DefaultBranch: "main",
+			ArtifactKey: "versions-" + tenantID, ArtifactSHA256: "versions", SchemaVersion: "v1alpha1", CommitSHA: "versions", ScannedAt: time.Now(),
+			Manifests: []UploadManifestParams{{Type: "requirements", Path: "requirements.txt", Dependencies: []UploadDependencyParams{
+				{Position: 0, Name: "litellm", PackageType: "pypi", Constraint: ">=1.103.0,<2"},
+				{Position: 1, Name: "litellm", PackageType: "pip", Constraint: "==1.103.1"},
+				{Position: 2, Name: "litellm", PackageType: "pypi", Version: "1.100.4", Constraint: ">=1.95,<2"},
+				{Position: 3, Name: "litellm", PackageType: "pypi", Version: "1.103.1"},
+				{Position: 4, Name: "litellm", PackageType: "pypi", Version: "1.103.2"},
+				{Position: 5, Name: "litellm", PackageType: "pypi", Constraint: ">=1.103.1,<2,!=1.107.0"},
+				{Position: 6, Name: "other", PackageType: "pypi", Version: "1.103.1"},
+			}}}})
+		require.NoError(t, err)
+	}
+	reads := ScanStore{DB: db}
+	all, err := reads.ListPackages(ctx, PackageListFilter{TenantID: tenant, Query: "litellm", Version: "1.103.1"})
+	require.NoError(t, err)
+	require.Len(t, all.Items, 4)
+	require.Equal(t, 4, all.Pagination.Total)
+	require.Equal(t, "1.103.1", all.Filters.Version)
+	var paged []PackageUsageItem
+	for n := 1; n <= 3; n++ {
+		page, err := reads.ListPackages(ctx, PackageListFilter{TenantID: tenant, Query: "litellm", Version: "1.103.1", Page: n, PageSize: 2})
+		require.NoError(t, err)
+		require.Equal(t, 4, page.Pagination.Total)
+		require.Equal(t, 2, page.Pagination.TotalPages)
+		require.Equal(t, n < 2, page.Pagination.HasNext)
+		require.NotNil(t, page.Items)
+		paged = append(paged, page.Items...)
+	}
+	require.Equal(t, all.Items, paged)
+	for _, tc := range []struct {
+		version string
+		total   int
+	}{{"1.107.0", 1}, {"1.100.4", 1}, {"2.0.0", 0}} {
+		page, err := reads.ListPackages(ctx, PackageListFilter{TenantID: tenant, Query: "litellm", Version: tc.version})
+		require.NoError(t, err)
+		require.Equal(t, tc.total, page.Pagination.Total)
+	}
+	_, err = reads.ListPackages(ctx, PackageListFilter{TenantID: tenant, Version: "^1"})
+	require.Error(t, err)
 }

@@ -14,14 +14,14 @@ const response = {
     { source: "socket", name: "@scope/react", version: "19", constraint: "", ecosystem: "npm", repository_id: "22222222-2222-2222-2222-222222222222", repository_name: "Socket repo", manifest_path: null }
   ],
   pagination: { page: 1, page_size: 25, total: 2, total_pages: 1, has_previous: false, has_next: false },
-  filters: { q: "" }
+  filters: { version: "", q: "" }
 } satisfies PackageListResponse;
 
 describe("PackagesPage", () => {
   it("shows package usages with source, repository and manifest file", async () => {
     mocks.listPackagesServer.mockResolvedValue(response);
     render(await PackagesPage({}));
-    expect(mocks.listPackagesServer).toHaveBeenCalledWith({ q: "", page: 1, page_size: 25 });
+    expect(mocks.listPackagesServer).toHaveBeenCalledWith({ q: "", version: "", page: 1, page_size: 25 });
     expect(screen.getByText("Showing 1-2 of 2 package usages")).toBeInTheDocument();
     expect(screen.getAllByText("@scope/react")).toHaveLength(1);
     expect(screen.getByRole("heading", { name: "@scope/react" })).toBeInTheDocument();
@@ -81,22 +81,23 @@ describe("PackagesPage", () => {
     mocks.listPackagesServer.mockResolvedValue({
       ...response,
       pagination: { page: 2, page_size: 10, total: 30, total_pages: 3, has_previous: true, has_next: true },
-      filters: { q: "@scope/react%" }
+      filters: { version: "", q: "@scope/react%" }
     });
-    render(await PackagesPage({ searchParams: Promise.resolve({ q: " @scope/react% ", page: "2", page_size: "10" }) }));
-    expect(mocks.listPackagesServer).toHaveBeenCalledWith({ q: "@scope/react%", page: 2, page_size: 10 });
+    render(await PackagesPage({ searchParams: Promise.resolve({ q: " @scope/react% ", version: " 1.103.1 ", page: "2", page_size: "10" }) }));
+    expect(mocks.listPackagesServer).toHaveBeenCalledWith({ q: "@scope/react%", version: "1.103.1", page: 2, page_size: 10 });
     expect(screen.getByText("Showing 11-12 of 30 package usages")).toBeInTheDocument();
     expect(screen.getByText("2 usages on this page")).toBeInTheDocument();
     expect(screen.getByText("Package groups may continue across pages.")).toBeInTheDocument();
     const input = screen.getByRole("searchbox", { name: "Search packages" });
+    expect(screen.getByRole("textbox", { name: "Version" })).toHaveValue("1.103.1");
     expect(input).toHaveValue("@scope/react%");
     const form = input.closest("form");
     expect(form).toHaveAttribute("method", "get");
     expect(form).toHaveAttribute("action", "/app/packages");
     expect(form?.querySelector('[name="page"]')).toBeNull();
     expect(form?.querySelector('[name="page_size"]')).toHaveValue("10");
-    expect(screen.getByRole("link", { name: "Previous" })).toHaveAttribute("href", "/app/packages?q=%40scope%2Freact%25&page_size=10");
-    expect(screen.getByRole("link", { name: "Next" })).toHaveAttribute("href", "/app/packages?q=%40scope%2Freact%25&page=3&page_size=10");
+    expect(screen.getByRole("link", { name: "Previous" })).toHaveAttribute("href", "/app/packages?q=%40scope%2Freact%25&version=1.103.1&page_size=10");
+    expect(screen.getByRole("link", { name: "Next" })).toHaveAttribute("href", "/app/packages?q=%40scope%2Freact%25&version=1.103.1&page=3&page_size=10");
     expect(screen.getByRole("link", { name: "Clear" })).toHaveAttribute("href", "/app/packages");
   });
 
@@ -104,10 +105,19 @@ describe("PackagesPage", () => {
     { q: "missing", message: "No packages match this search." },
     { q: "", message: "No active packages found." }
   ])("shows an empty state for '$q'", async ({ q, message }) => {
-    mocks.listPackagesServer.mockResolvedValue({ items: [], pagination: { page: 1, page_size: 25, total: 0, total_pages: 0, has_previous: false, has_next: false }, filters: { q } });
+    mocks.listPackagesServer.mockResolvedValue({ items: [], pagination: { page: 1, page_size: 25, total: 0, total_pages: 0, has_previous: false, has_next: false }, filters: { q, version: "" } });
     render(await PackagesPage({ searchParams: Promise.resolve({ q }) }));
     expect(screen.getByText(message)).toBeInTheDocument();
     expect(screen.getByText("Showing 0-0 of 0 package usages")).toBeInTheDocument();
+  });
+
+  it("allows clearing a version-only search and explains an empty result", async () => {
+    mocks.listPackagesServer.mockResolvedValue({ ...response, items: [], pagination: { ...response.pagination, total: 0, total_pages: 0 }, filters: { q: "", version: "2.0.0" } });
+    render(await PackagesPage({ searchParams: Promise.resolve({ version: "2.0.0" }) }));
+    expect(mocks.listPackagesServer).toHaveBeenCalledWith({ q: "", version: "2.0.0", page: 1, page_size: 25 });
+    expect(screen.getByText("No packages match this search.")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Version" })).toHaveValue("2.0.0");
+    expect(screen.getByRole("link", { name: "Clear" })).toHaveAttribute("href", "/app/packages");
   });
 
   it("lets the user return from an empty page beyond the last result", async () => {

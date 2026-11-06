@@ -21,9 +21,10 @@ function positiveInt(value: string | string[] | undefined, fallback: number) {
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-function packagesHref(params: { q: string; page: number; pageSize: number }) {
+function packagesHref(params: { q: string; version: string; page: number; pageSize: number }) {
   const searchParams = new URLSearchParams();
   if (params.q) searchParams.set("q", params.q);
+  if (params.version) searchParams.set("version", params.version);
   if (params.page > 1) searchParams.set("page", String(params.page));
   if (params.pageSize !== DEFAULT_PAGE_SIZE) searchParams.set("page_size", String(params.pageSize));
   const query = searchParams.toString();
@@ -35,15 +36,17 @@ export default async function PackagesPage({
 }: {
   searchParams?: Promise<{
     q?: string | string[];
+    version?: string | string[];
     page?: string | string[];
     page_size?: string | string[];
   }>;
 }) {
   const params = (await searchParams) ?? {};
   const query = (firstParam(params.q) ?? "").trim();
+  const version = (firstParam(params.version) ?? "").trim();
   const page = positiveInt(params.page, 1);
   const pageSize = Math.min(100, positiveInt(params.page_size, DEFAULT_PAGE_SIZE));
-  const { items, pagination } = await listPackagesServer({ q: query, page, page_size: pageSize });
+  const { items, pagination } = await listPackagesServer({ q: query, version, page, page_size: pageSize });
   const firstResult = items.length ? (pagination.page - 1) * pagination.page_size + 1 : 0;
   const lastResult = items.length ? firstResult + items.length - 1 : 0;
   const packageGroups = new Map<string, PackageUsage[]>();
@@ -77,10 +80,14 @@ export default async function PackagesPage({
                 maxLength={200}
               />
             </div>
+            <div className="grid gap-2 sm:w-56">
+              <Label className="sr-only" htmlFor="version">Version</Label>
+              <Input id="version" name="version" placeholder="Version, e.g. 1.103.1" defaultValue={version} maxLength={200} />
+            </div>
             <input name="page_size" type="hidden" value={pagination.page_size} />
             <div className="flex gap-2">
               <Button type="submit">Search</Button>
-              {query ? (
+              {query || version ? (
                 <Button asChild variant="outline">
                   <Link href="/app/packages">Clear</Link>
                 </Button>
@@ -97,7 +104,7 @@ export default async function PackagesPage({
             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-sm text-slate-600">
               {pagination.total > 0
                 ? "No package usages on this page."
-                : query
+                : query || version
                   ? "No packages match this search."
                   : "No active packages found."}
             </div>
@@ -158,6 +165,7 @@ export default async function PackagesPage({
                   <Button asChild size="sm" variant="outline">
                     <Link href={packagesHref({
                       q: query,
+                      version,
                       page: Math.max(1, pagination.page - 1),
                       pageSize: pagination.page_size
                     })}>Previous</Link>
@@ -169,6 +177,7 @@ export default async function PackagesPage({
                   <Button asChild size="sm" variant="outline">
                     <Link href={packagesHref({
                       q: query,
+                      version,
                       page: pagination.page + 1,
                       pageSize: pagination.page_size
                     })}>Next</Link>
