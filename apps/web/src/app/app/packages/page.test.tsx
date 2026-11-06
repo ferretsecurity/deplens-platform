@@ -1,6 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { ApiError } from "@/lib/api";
 import type { PackageListResponse } from "@/lib/packages";
 import type { listPackagesServer } from "@/lib/queries";
 import PackagesPage from "./page";
@@ -18,6 +19,20 @@ const response = {
 } satisfies PackageListResponse;
 
 describe("PackagesPage", () => {
+  it("keeps the form available when a version is rejected", async () => {
+    mocks.listPackagesServer.mockRejectedValueOnce(new ApiError(400, "invalid version"));
+    render(await PackagesPage({ searchParams: Promise.resolve({ q: "litellm", version: "latest" }) }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Enter a concrete version");
+    expect(screen.getByRole("textbox", { name: "Version" })).toHaveValue("latest");
+    expect(screen.getByRole("button", { name: "Search" })).toBeInTheDocument();
+    expect(screen.queryByText(/Showing/)).not.toBeInTheDocument();
+  });
+
+  it("does not hide server failures as invalid input", async () => {
+    mocks.listPackagesServer.mockRejectedValueOnce(new ApiError(500, "server error"));
+    await expect(PackagesPage({})).rejects.toThrow("server error");
+  });
+
   it("shows package usages with source, repository and manifest file", async () => {
     mocks.listPackagesServer.mockResolvedValue(response);
     render(await PackagesPage({}));

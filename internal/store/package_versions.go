@@ -8,8 +8,6 @@ import (
 	"deps.dev/util/semver"
 )
 
-// Only known ecosystems get constraint interpretation. Unknown ecosystems can
-// still match an identical recorded version without assuming npm semantics.
 var packageVersionSystems = map[string]semver.System{
 	"npm": semver.NPM, "pypi": semver.PyPI, "pip": semver.PyPI,
 	"cargo": semver.Cargo, "go": semver.Go, "maven": semver.Maven,
@@ -63,5 +61,30 @@ func packageMatchesVersion(item PackageUsageItem, requested string) bool {
 		return false
 	}
 	parsed, err := system.ParseConstraint(constraint)
-	return err == nil && parsed.MatchVersion(version)
+	if err != nil {
+		return false
+	}
+	if system == semver.PyPI && strings.Contains(requested, "+") {
+		public, _, _ := strings.Cut(requested, "+")
+		for _, specifier := range strings.Split(constraint, ",") {
+			specifier = strings.TrimSpace(specifier)
+			if strings.Contains(specifier, "+") {
+				operator := "=="
+				if strings.HasPrefix(specifier, "!=") {
+					operator = "!="
+				}
+				target, err := system.Parse(strings.TrimSpace(strings.TrimPrefix(specifier, operator)))
+				if err != nil || (version.Compare(target) == 0) != (operator == "==") {
+					return false
+				}
+			} else {
+				clause, err := system.ParseConstraint(specifier)
+				if err != nil || !clause.Match(public) {
+					return false
+				}
+			}
+		}
+		return true
+	}
+	return parsed.MatchVersion(version)
 }
