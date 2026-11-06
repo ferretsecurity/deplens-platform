@@ -15,17 +15,17 @@ import (
 func TestListPackagesParsesSearchAndPagination(t *testing.T) {
 	reads := &fakeQueryStore{}
 	handler := newTestQueryRouterWithStore(t, reads)
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/packages?q=%20REAct%20&page=2&page_size=10", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/packages?q=%20REAct%20&version=%201.103.1%20&page=2&page_size=10", nil)
 	req.Header.Set("Authorization", "Bearer bootstrap-token")
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
-	require.Equal(t, store.PackageListFilter{TenantID: "tenant-1", Query: "REAct", Page: 2, PageSize: 10}, reads.listPackagesFilter)
-	require.JSONEq(t, `{"items":[{"source":"cli","name":"react","version":"19.1.0","constraint":"","ecosystem":"","repository_id":"11111111-1111-1111-1111-111111111111","repository_name":"Repo","manifest_path":null}],"pagination":{"page":2,"page_size":10,"total":1,"total_pages":1,"has_previous":false,"has_next":false},"filters":{"q":"REAct"}}`, rr.Body.String())
+	require.Equal(t, store.PackageListFilter{TenantID: "tenant-1", Query: "REAct", Version: "1.103.1", Page: 2, PageSize: 10}, reads.listPackagesFilter)
+	require.JSONEq(t, `{"items":[{"source":"cli","name":"react","version":"19.1.0","constraint":"","ecosystem":"","repository_id":"11111111-1111-1111-1111-111111111111","repository_name":"Repo","manifest_path":null}],"pagination":{"page":2,"page_size":10,"total":1,"total_pages":1,"has_previous":false,"has_next":false},"filters":{"q":"REAct","version":"1.103.1"}}`, rr.Body.String())
 }
 
 func TestListPackagesRejectsInvalidFiltersBeforeStore(t *testing.T) {
-	for _, query := range []string{"page=0", "page=-1", "page=no", "page=1.5", "page_size=0", "page_size=-1", "page_size=no", "page_size=101", "page=9223372036854775807&page_size=100", "page=99999999999999999999999", "q=" + strings.Repeat("a", 201)} {
+	for _, query := range []string{"version=latest", "version=%3E%3D1", "version=1.*", "version=" + strings.Repeat("1", 201), "page=0", "page=-1", "page=no", "page=1.5", "page_size=0", "page_size=-1", "page_size=no", "page_size=101", "page=9223372036854775807&page_size=100", "page=99999999999999999999999", "q=" + strings.Repeat("a", 201)} {
 		t.Run(query, func(t *testing.T) {
 			reads := &fakeQueryStore{}
 			req := httptest.NewRequest(http.MethodGet, "/api/v1/packages?"+query, nil)

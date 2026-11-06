@@ -21,7 +21,7 @@ export const packageListResponseSchema = z.object({
     has_previous: z.boolean(),
     has_next: z.boolean()
   }),
-  filters: z.object({ q: z.string() })
+  filters: z.object({ q: z.string(), version: z.string() })
 });
 
 export type PackageUsage = z.infer<typeof packageUsageSchema>;

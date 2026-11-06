@@ -66,9 +66,10 @@ export async function listDependenciesServer() {
   });
 }
 
-export async function listPackagesServer(params: { q: string; page: number; page_size: number }) {
+export async function listPackagesServer(params: { q: string; version: string; page: number; page_size: number }) {
   const searchParams = new URLSearchParams({
     q: params.q,
+    version: params.version,
     page: String(params.page),
     page_size: String(params.page_size)
   });

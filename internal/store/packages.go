@@ -13,6 +13,7 @@ const DefaultPackagePageSize = 25
 type PackageListFilter struct {
 	TenantID string
 	Query    string
+	Version  string
 	Page     int
 	PageSize int
 }
@@ -35,11 +36,16 @@ type PackageListPage struct {
 }
 
 type PackageFilters struct {
-	Query string `json:"q"`
+	Query   string `json:"q"`
+	Version string `json:"version"`
 }
 
 func (s ScanStore) ListPackages(ctx context.Context, filter PackageListFilter) (PackageListPage, error) {
 	filter.Query = strings.TrimSpace(filter.Query)
+	filter.Version = strings.TrimSpace(filter.Version)
+	if err := ValidatePackageVersion(filter.Version); err != nil {
+		return PackageListPage{}, err
+	}
 	if filter.Page < 1 {
 		filter.Page = 1
 	}
@@ -53,7 +59,60 @@ func (s ScanStore) ListPackages(ctx context.Context, filter PackageListFilter) (
 
 	var itemsJSON []byte
 	var total int
-	err := s.DB.QueryRow(ctx, `
+	items := make([]PackageUsageItem, 0)
+	if filter.Version != "" {
+		rows, err := s.DB.Query(ctx, packageCandidatesSQL+` select * from filtered `+packageOrderSQL,
+			filter.TenantID, filter.Query, "%"+escapeLikePattern(filter.Query)+"%")
+		if err != nil {
+			return PackageListPage{}, err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var item PackageUsageItem
+			if err := rows.Scan(&item.Source, &item.Name, &item.Version, &item.Constraint, &item.Ecosystem,
+				&item.RepositoryID, &item.RepositoryName, &item.ManifestPath); err != nil {
+				return PackageListPage{}, err
+			}
+			if !packageMatchesVersion(item, filter.Version) {
+				continue
+			}
+			if int64(total) >= offset && len(items) < filter.PageSize {
+				items = append(items, item)
+			}
+			total++
+		}
+		if err := rows.Err(); err != nil {
+			return PackageListPage{}, err
+		}
+	} else {
+		err := s.DB.QueryRow(ctx, packageCandidatesSQL+`, page as (
+			select * from filtered `+packageOrderSQL+` limit $4 offset $5
+		)
+		select (select coalesce(jsonb_agg(p), '[]'::jsonb) from page p), (select count(*) from filtered)`,
+			filter.TenantID, filter.Query, "%"+escapeLikePattern(filter.Query)+"%", filter.PageSize, offset).Scan(&itemsJSON, &total)
+		if err != nil {
+			return PackageListPage{}, err
+		}
+		if err := json.Unmarshal(itemsJSON, &items); err != nil {
+			return PackageListPage{}, err
+		}
+	}
+
+	totalPages := total / filter.PageSize
+	if total%filter.PageSize != 0 {
+		totalPages++
+	}
+	return PackageListPage{
+		Items: items,
+		Pagination: PaginationMetadata{
+			Page: filter.Page, PageSize: filter.PageSize, Total: total, TotalPages: totalPages,
+			HasPrevious: filter.Page > 1, HasNext: filter.Page < totalPages,
+		},
+		Filters: PackageFilters{Query: filter.Query, Version: filter.Version},
+	}, nil
+}
+
+const packageCandidatesSQL = `
 		with usages as (
 			select 'cli'::text as source, d.name, d.version, d."constraint",
 				d.package_type as ecosystem,
@@ -86,30 +145,6 @@ func (s ScanStore) ListPackages(ctx context.Context, filter PackageListFilter) (
 				r.id as repository_id, r.name as repository_name, u.manifest_path
 			from usages u join inventory_repositories r on r.id = u.repository_id and r.tenant_id = $1
 			where $2 = '' or u.name ilike $3 escape '\'
-		), page as (
-			select * from filtered
-			order by lower(name), name, version, "constraint", ecosystem, source, repository_id, repository_name, manifest_path nulls first
-			limit $4 offset $5
-		)
-		select (select coalesce(jsonb_agg(p), '[]'::jsonb) from page p), (select count(*) from filtered)
-	`, filter.TenantID, filter.Query, "%"+escapeLikePattern(filter.Query)+"%", filter.PageSize, offset).Scan(&itemsJSON, &total)
-	if err != nil {
-		return PackageListPage{}, err
-	}
-	var items []PackageUsageItem
-	if err := json.Unmarshal(itemsJSON, &items); err != nil {
-		return PackageListPage{}, err
-	}
-	totalPages := total / filter.PageSize
-	if total%filter.PageSize != 0 {
-		totalPages++
-	}
-	return PackageListPage{
-		Items: items,
-		Pagination: PaginationMetadata{
-			Page: filter.Page, PageSize: filter.PageSize, Total: total, TotalPages: totalPages,
-			HasPrevious: filter.Page > 1, HasNext: filter.Page < totalPages,
-		},
-		Filters: PackageFilters{Query: filter.Query},
-	}, nil
-}
+		)`
+
+const packageOrderSQL = `order by lower(name), name, version, "constraint", ecosystem, source, repository_id, repository_name, manifest_path nulls first`
