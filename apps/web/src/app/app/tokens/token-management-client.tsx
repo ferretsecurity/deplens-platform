@@ -128,7 +128,7 @@ export function TokenManagementClient({ initialTokens }: TokenManagementClientPr
         </div>
       ) : null}
 
-      <form className="grid gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 lg:grid-cols-[minmax(180px,1fr)_minmax(260px,2fr)_auto]" onSubmit={submitToken}>
+      <form className="grid gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]" onSubmit={submitToken}>
         <div className="space-y-2">
           <Label htmlFor="token-label">Label</Label>
           <Input
@@ -157,7 +157,7 @@ export function TokenManagementClient({ initialTokens }: TokenManagementClientPr
             ))}
           </div>
         </div>
-        <div className="flex items-end gap-2">
+        <div className="flex flex-wrap items-end gap-2">
           <Button disabled={submitting} type="submit">
             {mode.type === "edit" ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
             {submitLabel}
@@ -168,7 +168,7 @@ export function TokenManagementClient({ initialTokens }: TokenManagementClientPr
             </Button>
           ) : null}
         </div>
-        {error ? <p className="text-sm text-red-600 lg:col-span-3">{error}</p> : null}
+        {error ? <p className="text-sm text-red-600 xl:col-span-3">{error}</p> : null}
       </form>
 
       {tokens.length === 0 ? (
@@ -176,20 +176,20 @@ export function TokenManagementClient({ initialTokens }: TokenManagementClientPr
           No API tokens have been issued yet.
         </div>
       ) : (
-        <Table>
+        <Table layout="reflow" aria-label="API tokens">
           <TableHeader>
             <TableRow>
               <TableHead>Label</TableHead>
               <TableHead>Scopes</TableHead>
               <TableHead>Created</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="w-48 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sortedTokens.map((token) => (
               <TableRow key={token.id}>
-                <TableCell className="font-medium">{token.label}</TableCell>
-                <TableCell>
+                <TableCell mobileLabel="Label" className="table-cell-wide font-medium">{token.label}</TableCell>
+                <TableCell mobileLabel="Scopes" className="table-cell-wide">
                   <div className="flex flex-wrap gap-1.5">
                     {token.scopes.map((scope) => (
                       <span key={scope} className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-700">
@@ -198,13 +198,13 @@ export function TokenManagementClient({ initialTokens }: TokenManagementClientPr
                     ))}
                   </div>
                 </TableCell>
-                <TableCell className="text-slate-600">
+                <TableCell mobileLabel="Created" className="table-cell-wide text-slate-600">
                   {new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(
                     new Date(token.created_at)
                   )}
                 </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
+                <TableCell mobileLabel="Actions" className="table-cell-wide text-right">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
                       variant="outline"
@@ -240,7 +240,7 @@ export function TokenManagementClient({ initialTokens }: TokenManagementClientPr
               Create a replacement, update CI or scanners, then delete{" "}
               <span className="font-medium">{confirmingDelete.label}</span>.
             </p>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" size="sm" onClick={() => setConfirmingDelete(null)}>
                 Cancel
               </Button>

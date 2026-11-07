@@ -33,7 +33,7 @@ describe("ManifestComparison", () => {
     const table = screen.getByRole("table", { name: "Manifest file comparison" });
     expect(within(table).getAllByRole("columnheader").map((cell) => cell.textContent))
       .toEqual(["Path", "Deplens", "Socket", "Snyk"]);
-    const shared = within(table).getByRole("row", { name: /shared\/package.json/ });
+    const shared = within(table).getByRole("row", { name: /shared\/\s*package.json/ });
     expect(within(shared).getByText("Active")).toBeVisible();
     expect(within(shared).getByText("Detected")).toBeVisible();
     expect(within(table).getAllByText("shared/package.json")).toHaveLength(1);
@@ -95,13 +95,17 @@ it("aligns all three providers, retains Snyk-only paths, and flags incomplete in
     sources={[source(["shared.json", "socket.json"])]}
     snykSources={[{ ...snykSource(["shared.json", "snyk.json"]), available: false }]} />);
   const shared = screen.getByRole("row", { name: /shared.json/ });
-  expect(within(shared).getAllByRole("cell").map((cell) => cell.textContent)).toEqual([
-    "shared.json", expect.stringContaining("Active"), "Detected", "Detected in unavailable source"
-  ]);
+  const sharedCells = within(shared).getAllByRole("cell");
+  expect(sharedCells).toHaveLength(4);
+  ["shared.json", /^Active/, "Detected", "Detected in unavailable source"].forEach((name, index) => {
+    expect(sharedCells[index]).toHaveAccessibleName(name);
+  });
   const snykOnly = screen.getByRole("row", { name: /snyk.json/ });
-  expect(within(snykOnly).getAllByRole("cell").map((cell) => cell.textContent)).toEqual([
-    "snyk.json", "Not found", "Not found in imported files", "Detected in unavailable source"
-  ]);
+  const snykCells = within(snykOnly).getAllByRole("cell");
+  expect(snykCells).toHaveLength(4);
+  ["snyk.json", "Not found", "Not found in imported files", "Detected in unavailable source"].forEach((name, index) => {
+    expect(snykCells[index]).toHaveAccessibleName(name);
+  });
   expect(screen.getByText(/Some Snyk sources are unavailable/)).toBeVisible();
 });
 

@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { listRepositoriesServer } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -71,7 +71,7 @@ export default async function RepositoriesPage({
     <section className="space-y-6">
       <Card className="border-slate-200/80 bg-white/80 shadow-sm backdrop-blur">
         <CardHeader>
-          <CardTitle>Repositories</CardTitle>
+          <h1 className="text-2xl font-semibold leading-none tracking-tight">Repositories</h1>
           <CardDescription>Browse repositories imported from the CLI, Socket and Snyk.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -108,20 +108,20 @@ export default async function RepositoriesPage({
               <div className="text-sm text-slate-600">
                 Showing {firstResult}-{lastResult} of {pagination.total} repositories
               </div>
-              <Table>
+              <Table layout="reflow" aria-label="Repositories">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Sources</TableHead><TableHead>URL</TableHead>
+                    <TableHead className="w-[24%]">Name</TableHead>
+                    <TableHead>Sources</TableHead><TableHead className="w-[28%]">URL</TableHead>
                     <TableHead>Default branch</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="w-40 text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {repositories.map((repository) => (
                     <TableRow key={repository.id}>
-                      <TableCell className="font-medium">{repository.name}</TableCell>
-                      <TableCell><RepositorySources repository={repository} /></TableCell><TableCell className="max-w-[380px] truncate">
+                      <TableCell mobileLabel="Name" className="table-cell-wide font-medium">{repository.name}</TableCell>
+                      <TableCell mobileLabel="Sources"><RepositorySources repository={repository} /></TableCell><TableCell mobileLabel="URL" className="table-cell-wide">
                         <a
                           className="text-slate-600 underline-offset-4 hover:text-slate-900 hover:underline"
                           href={repository.url}
@@ -131,17 +131,17 @@ export default async function RepositoriesPage({
                           {repository.url}
                         </a>
                       </TableCell>
-                      <TableCell>{repository.default_branch}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex flex-col items-end gap-2 sm:flex-row sm:justify-end">
+                      <TableCell mobileLabel="Default branch">{repository.default_branch}</TableCell>
+                      <TableCell mobileLabel="Actions" className="table-cell-wide text-right">
+                        <div className="flex flex-wrap gap-x-4 gap-y-2">
                           <Link
-                            className="font-medium text-slate-900 underline-offset-4 hover:underline"
+                            className="whitespace-nowrap font-medium text-slate-900 underline-offset-4 hover:underline"
                             href={`/app/repositories/${repository.id}/manifests`}
                           >
                             Manifest files
                           </Link>
                           <Link
-                            className="font-medium text-slate-900 underline-offset-4 hover:underline"
+                            className="whitespace-nowrap font-medium text-slate-900 underline-offset-4 hover:underline"
                             href={`/app/scans?repository_id=${repository.id}`}
                           >
                             Open scans

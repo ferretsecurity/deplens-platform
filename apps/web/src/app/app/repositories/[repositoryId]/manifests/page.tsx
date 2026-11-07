@@ -42,11 +42,11 @@ export default async function RepositoryManifestsPage({
 
       <Card className="border-slate-200/80 bg-white/80 shadow-sm backdrop-blur">
         <CardHeader>
-          <CardTitle>{repository?.name ?? repositoryId}</CardTitle>
+          <CardTitle className="[overflow-wrap:anywhere]">{repository?.name ?? repositoryId}</CardTitle>
           <CardDescription>
             {repository ? (
               <a
-                className="underline-offset-4 hover:text-slate-900 hover:underline"
+                className="[overflow-wrap:anywhere] underline-offset-4 hover:text-slate-900 hover:underline"
                 href={repository.url}
                 rel="noreferrer"
                 target="_blank"

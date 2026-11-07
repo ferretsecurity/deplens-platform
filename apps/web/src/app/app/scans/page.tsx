@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { listRepositoryOptionsServer, listScansServer } from "@/lib/queries";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,7 +36,7 @@ export default async function ScansPage({
     return (
       <Card className="border-slate-200/80 bg-white/80 shadow-sm backdrop-blur">
         <CardHeader>
-          <CardTitle>Scans</CardTitle>
+          <h1 className="text-2xl font-semibold leading-none tracking-tight">Scans</h1>
           <CardDescription>No repositories have been uploaded yet.</CardDescription>
         </CardHeader>
       </Card>
@@ -58,17 +58,17 @@ export default async function ScansPage({
     <section className="space-y-6">
       <Card className="border-slate-200/80 bg-white/80 shadow-sm backdrop-blur">
         <CardHeader>
-          <CardTitle>Scans</CardTitle>
+          <h1 className="text-2xl font-semibold leading-none tracking-tight">Scans</h1>
           <CardDescription>
             Inspect scan runs for {activeRepository.name}. Filter by repository and date window.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="grid gap-4 md:grid-cols-[1.2fr_0.9fr_0.9fr_auto] md:items-end" method="get">
-            <div className="grid gap-2">
+          <form className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_auto] md:items-end" method="get">
+            <div className="grid min-w-0 gap-2">
               <Label htmlFor="repository_id">Repository</Label>
               <select
-                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                className="h-10 w-full min-w-0 max-w-full rounded-md border border-input bg-background px-3 text-sm"
                 id="repository_id"
                 name="repository_id"
                 defaultValue={repositoryId}
@@ -80,13 +80,13 @@ export default async function ScansPage({
                 ))}
               </select>
             </div>
-            <div className="grid gap-2">
+            <div className="grid min-w-0 gap-2">
               <Label htmlFor="from">From</Label>
-              <Input id="from" name="from" type="date" defaultValue={fromDate} />
+              <Input className="w-full min-w-0 max-w-full" id="from" name="from" type="date" defaultValue={fromDate} />
             </div>
-            <div className="grid gap-2">
+            <div className="grid min-w-0 gap-2">
               <Label htmlFor="to">To</Label>
-              <Input id="to" name="to" type="date" defaultValue={toDate} />
+              <Input className="w-full min-w-0 max-w-full" id="to" name="to" type="date" defaultValue={toDate} />
             </div>
             <Button type="submit">Apply</Button>
           </form>
@@ -100,7 +100,7 @@ export default async function ScansPage({
               No scans found for this window.
             </div>
           ) : (
-            <Table>
+            <Table layout="reflow" aria-label="Scans">
               <TableHeader>
                 <TableRow>
                   <TableHead>Commit</TableHead>
@@ -113,13 +113,14 @@ export default async function ScansPage({
               <TableBody>
                 {scans.map((scan) => (
                   <TableRow key={scan.id}>
-                    <TableCell className="font-medium">{scan.commit_sha}</TableCell>
-                    <TableCell>{new Date(scan.scanned_at).toLocaleString()}</TableCell>
-                    <TableCell>{scan.manifest_count}</TableCell>
-                    <TableCell>{scan.dependency_count}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell mobileLabel="Commit" className="table-cell-wide font-medium">{scan.commit_sha}</TableCell>
+                    <TableCell mobileLabel="Scanned at" className="table-cell-wide">{new Date(scan.scanned_at).toLocaleString()}</TableCell>
+                    <TableCell mobileLabel="Manifests">{scan.manifest_count}</TableCell>
+                    <TableCell mobileLabel="Dependencies">{scan.dependency_count}</TableCell>
+                    <TableCell mobileLabel="Open" className="table-cell-wide text-right">
                       <Link
                         className="font-medium text-slate-900 underline-offset-4 hover:underline"
+                        aria-label={`Details for ${scan.commit_sha}`}
                         href={`/app/scans/${scan.id}`}
                       >
                         Details

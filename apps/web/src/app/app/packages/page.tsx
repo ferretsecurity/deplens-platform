@@ -1,3 +1,4 @@
+import { FilePath } from "@/components/file-path";
 import React from "react";
 import Link from "next/link";
 
@@ -5,7 +6,7 @@ import { ApiError } from "@/lib/api";
 import { listPackagesServer } from "@/lib/queries";
 import type { PackageUsage } from "@/lib/packages";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -66,7 +67,7 @@ export default async function PackagesPage({
     <section className="space-y-6">
       <Card className="border-slate-200/80 bg-white/80 shadow-sm backdrop-blur">
         <CardHeader>
-          <CardTitle>Packages</CardTitle>
+          <h1 className="text-2xl font-semibold leading-none tracking-tight">Packages</h1>
           <CardDescription>
             Find package usages across repositories and manifest files from the CLI, Socket and Snyk.
           </CardDescription>
@@ -121,31 +122,26 @@ export default async function PackagesPage({
               {Array.from(packageGroups, ([name, usages]) => (
                 <section key={name} aria-label={name} className="space-y-3">
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <h2 className="break-all text-lg font-semibold text-slate-900">{name}</h2>
+                    <h2 className="[overflow-wrap:anywhere] text-lg font-semibold text-slate-900">{name}</h2>
                     <p className="text-sm text-slate-600">
                       {usages.length} {usages.length === 1 ? "usage" : "usages"} on this page
                     </p>
                   </div>
-                  <div className="overflow-x-auto">
-                    <Table className="min-w-[640px]">
+                  <div>
+                    <Table layout="reflow" aria-label={`${name} usages`}>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="w-[24%]">Repository</TableHead>
+                          <TableHead className="w-[30%]">Manifest file</TableHead>
                           <TableHead>Version / constraint</TableHead>
                           <TableHead>Ecosystem</TableHead>
                           <TableHead>Source</TableHead>
-                          <TableHead>Repository</TableHead>
-                          <TableHead>Manifest file</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {usages.map((item) => (
                           <TableRow key={JSON.stringify(item)}>
-                            <TableCell>
-                              {[item.version, item.constraint].filter(Boolean).join(" / ") || "Unspecified"}
-                            </TableCell>
-                            <TableCell>{item.ecosystem || "Unspecified"}</TableCell>
-                            <TableCell>{sourceLabels[item.source]}</TableCell>
-                            <TableCell>
+                            <TableCell mobileLabel="Repository" className="table-cell-wide">
                               <Link
                                 className="font-medium text-slate-900 underline-offset-4 hover:underline"
                                 href={`/app/repositories/${item.repository_id}/manifests`}
@@ -153,7 +149,12 @@ export default async function PackagesPage({
                                 {item.repository_name}
                               </Link>
                             </TableCell>
-                            <TableCell className="break-all">{item.manifest_path ?? "Not reported"}</TableCell>
+                            <TableCell mobileLabel="Manifest file" className="table-cell-wide">{item.manifest_path ? <FilePath path={item.manifest_path} /> : "Not reported"}</TableCell>
+                            <TableCell mobileLabel="Version / constraint">
+                              {[item.version, item.constraint].filter(Boolean).join(" / ") || "Unspecified"}
+                            </TableCell>
+                            <TableCell mobileLabel="Ecosystem">{item.ecosystem || "Unspecified"}</TableCell>
+                            <TableCell mobileLabel="Source">{sourceLabels[item.source]}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

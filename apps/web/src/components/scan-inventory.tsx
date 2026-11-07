@@ -1,5 +1,6 @@
 "use client";
 
+import { FilePath } from "@/components/file-path";
 import React, { useState } from "react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,7 +26,7 @@ function ManifestEntry({ manifest }: { manifest: ScanManifestItem }) {
       }}
     >
       <summary className="cursor-pointer px-4 py-3 text-sm">
-        <span className="break-all font-semibold text-slate-950">{manifest.path}</span>
+        <span className="[overflow-wrap:anywhere] font-semibold text-slate-950"><FilePath path={manifest.path} /></span>
         <span className="ml-3 text-slate-500">{manifest.type} · {manifest.dependencies.length} dependencies</span>
       </summary>
       {view.kind === "expanded" && (
@@ -34,15 +35,15 @@ function ManifestEntry({ manifest }: { manifest: ScanManifestItem }) {
           {manifest.dependencies.length === 0 ? <p className="text-sm text-slate-600">No dependencies recorded.</p> : (
             <>
               <ListPagination page={view.page} pageSize={dependenciesPerPage} total={manifest.dependencies.length} onPageChange={(page) => setView({ kind: "expanded", page })} />
-              <Table>
+              <Table layout="reflow" aria-label="Manifest dependencies">
                 <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Version</TableHead><TableHead>Constraint</TableHead><TableHead>Source</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {manifest.dependencies.slice(view.page * dependenciesPerPage, (view.page + 1) * dependenciesPerPage).map((dependency) => (
                     <TableRow key={dependency.id}>
-                      <TableCell className="font-medium">{dependency.name || dependency.raw}</TableCell>
-                      <TableCell>{dependency.version || "n/a"}</TableCell>
-                      <TableCell>{dependency.constraint || "n/a"}</TableCell>
-                      <TableCell>{dependency.source || "n/a"}</TableCell>
+                      <TableCell mobileLabel="Name" className="table-cell-wide font-medium">{dependency.name || dependency.raw}</TableCell>
+                      <TableCell mobileLabel="Version">{dependency.version || "n/a"}</TableCell>
+                      <TableCell mobileLabel="Constraint">{dependency.constraint || "n/a"}</TableCell>
+                      <TableCell mobileLabel="Source">{dependency.source || "n/a"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
