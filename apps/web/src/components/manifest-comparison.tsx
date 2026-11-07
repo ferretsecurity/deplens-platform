@@ -1,5 +1,6 @@
 "use client";
 
+import { FilePath } from "@/components/file-path";
 import React, { useState } from "react";
 import type { RepositoryManifestItem } from "@/lib/types";
 import type { SnykInventory } from "@/lib/snyk";
@@ -65,11 +66,11 @@ export function ManifestComparison({ manifests, sources, snykSources = [] }: {
         value={search}
         onChange={(event) => { setSearch(event.target.value); setPage(0); }}
       />
-      <div className="overflow-x-auto">
-        <Table aria-label="Manifest file comparison" className="min-w-[600px] table-fixed">
+      <div>
+        <Table layout="reflow" aria-label="Manifest file comparison">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-1/2">Path</TableHead>
+              <TableHead className="w-[40%]">Path</TableHead>
               <TableHead>Deplens</TableHead>
               {providers.map((provider) => <TableHead key={provider.name}>{provider.name}</TableHead>)}
             </TableRow>
@@ -79,20 +80,20 @@ export function ManifestComparison({ manifests, sources, snykSources = [] }: {
               const manifest = deplensFiles.get(path);
               return (
                 <TableRow key={path}>
-                  <TableCell className="break-all align-top font-medium">{path}</TableCell>
-                  <TableCell className="align-top">
+                  <TableCell mobileLabel="Path" className="table-cell-wide table-cell-identity align-top font-medium"><FilePath path={path} /></TableCell>
+                  <TableCell mobileLabel="Deplens" className="table-cell-wide align-top">
                     {manifest ? (
                       <div className="space-y-1">
                         <p className={manifest.is_active ? "text-slate-900" : "text-slate-500"}>
                           {manifest.is_active ? "Active" : "Disappeared"}
                         </p>
-                        <p className="text-xs text-slate-500">First seen: {new Date(manifest.first_seen_at).toLocaleString()}</p>
-                        <p className="text-xs text-slate-500">Last seen: {new Date(manifest.last_seen_at).toLocaleString()}</p>
+                        <p className="text-xs text-slate-500">First seen: <time dateTime={manifest.first_seen_at} title={new Date(manifest.first_seen_at).toISOString()} className="inline-block">{new Date(manifest.first_seen_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} <span className="whitespace-nowrap">{new Date(manifest.first_seen_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span></time></p>
+                        <p className="text-xs text-slate-500">Last seen: <time dateTime={manifest.last_seen_at} title={new Date(manifest.last_seen_at).toISOString()} className="inline-block">{new Date(manifest.last_seen_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} <span className="whitespace-nowrap">{new Date(manifest.last_seen_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span></time></p>
                       </div>
                     ) : <span className="text-slate-500">Not found</span>}
                   </TableCell>
                   {providers.map((provider) => (
-                    <TableCell key={provider.name} className="align-top">
+                    <TableCell key={provider.name} mobileLabel={provider.name} className="align-top">
                       {provider.files.has(path)
                         ? provider.availableFiles.has(path) ? "Detected" : "Detected in unavailable source"
                         : <span className="text-slate-500">{provider.missing}</span>}
@@ -110,9 +111,9 @@ export function ManifestComparison({ manifests, sources, snykSources = [] }: {
         </Table>
       </div>
       {paths.length > pageSize && (
-        <div className="flex items-center justify-between gap-2 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
           <span>{paths.length} files · Page {page + 1} of {pageCount}</span>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous files</Button>
             <Button variant="outline" disabled={page + 1 >= pageCount} onClick={() => setPage(page + 1)}>Next files</Button>
           </div>

@@ -67,3 +67,127 @@ body {
   color: hsl(var(--foreground));
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.table-container {
+  container-type: inline-size;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.table-reflow {
+  table-layout: fixed;
+  overflow-wrap: anywhere;
+}
+
+.table-mobile-label {
+  display: none;
+}
+
+@container (max-width: 48rem) {
+  .table-reflow,
+  .table-reflow > tbody {
+    display: block;
+  }
+
+  .table-reflow > thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .table-reflow > tbody > tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem 1rem;
+    padding: 0.75rem 0;
+  }
+
+  .table-reflow > tbody > tr > td {
+    display: block;
+    min-width: 0;
+    width: auto;
+    max-width: none;
+    padding: 0;
+    text-align: left;
+  }
+
+  .table-reflow > tbody > tr > .table-cell-wide,
+  .table-reflow > tbody > tr > td[colspan] {
+    grid-column: 1 / -1;
+  }
+
+  .table-reflow > tbody > tr > td > .table-mobile-label {
+    display: block;
+    margin-bottom: 0.125rem;
+    color: hsl(var(--muted-foreground));
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+}
+
+@container (max-width: 48rem) {
+  .table-reflow > tbody > tr > .table-cell-identity {
+    font-weight: 600;
+  }
+
+  .table-reflow > tbody > tr > .table-cell-identity > .table-mobile-label {
+    display: none;
+  }
+
+  .table-reflow .table-actions {
+    justify-content: flex-start;
+  }
+}
+
+@container (min-width: 30rem) and (max-width: 48rem) {
+  .table-reflow > tbody > tr {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 36rem) and (max-width: 48rem) {
+  .table-reflow:is(.repository-records, .package-usages, .scan-history) > tbody > tr {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .table-reflow:is(.repository-records, .package-usages, .scan-history) > tbody > tr > td {
+    grid-column: span 2;
+  }
+
+  .table-reflow:is(.repository-records, .package-usages, .scan-history) > tbody > tr > td:nth-child(-n + 2) {
+    grid-column: span 3;
+  }
+}
+
+.scan-filters-container {
+  container-type: inline-size;
+}
+
+@container (min-width: 36rem) {
+  .scan-filters {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+
+  .scan-filters > :first-child {
+    grid-column: 1 / -1;
+  }
+
+  .scan-filters > button {
+    grid-column: auto;
+  }
+}
+
+@container (min-width: 48rem) {
+  .scan-filters {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 0.9fr) auto;
+  }
+
+  .scan-filters > :first-child {
+    grid-column: auto;
+  }
+}

@@ -1,9 +1,10 @@
+import { EmptyInventory } from "@/components/empty-inventory";
 import React from "react";
 
 import { PagePagination } from "@/components/page-pagination";
 import { listDependenciesServer } from "@/lib/queries";
 import type { DependencyListItem } from "@/lib/types";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 function dependencyDisplayName(dependency: DependencyListItem) {
@@ -29,20 +30,21 @@ export default async function DependenciesPage({ searchParams = Promise.resolve(
     <section className="space-y-6">
       <Card className="border-slate-200/80 bg-white/80 shadow-sm backdrop-blur">
         <CardHeader>
-          <CardTitle>Dependencies</CardTitle>
+          <h1 className="text-2xl font-semibold leading-none tracking-tight">Dependencies</h1>
           <CardDescription>
-            Active dependency usage across repositories and manifest files.
+            Summarized active dependencies with repository and manifest counts. Use Packages to find individual usages and paths.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {dependencies.items.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-sm text-slate-600">
-              No active dependencies found.
+              <p className="mb-3">No active dependencies found.</p>
+              <EmptyInventory />
             </div>
           ) : (
             <>
               <PagePagination page={page} pageSize={pageSize} total={dependencies.items.length} />
-              <Table>
+              <Table layout="reflow" aria-label="Dependencies">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Dependency</TableHead>
@@ -55,9 +57,9 @@ export default async function DependenciesPage({ searchParams = Promise.resolve(
                     <TableRow
                       key={`${dependency.name}:${dependency.version}:${dependency.raw}:${index}`}
                     >
-                      <TableCell className="font-medium">{dependencyDisplayName(dependency)}</TableCell>
-                      <TableCell>{dependency.ecosystem || "Unspecified"}</TableCell><TableCell className="text-right">{dependency.repository_count}</TableCell>
-                      <TableCell className="text-right">{dependency.manifest_file_count}</TableCell>
+                      <TableCell mobileLabel="Dependency" className="table-cell-wide table-cell-identity font-medium">{dependencyDisplayName(dependency)}</TableCell>
+                      <TableCell mobileLabel="Ecosystem">{dependency.ecosystem || "Unspecified"}</TableCell><TableCell mobileLabel="Repositories" className="text-right">{dependency.repository_count}</TableCell>
+                      <TableCell mobileLabel="Manifest files" className="text-right">{dependency.manifest_file_count}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

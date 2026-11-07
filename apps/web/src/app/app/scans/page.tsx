@@ -1,8 +1,10 @@
+import React from "react";
+import { EmptyInventory } from "@/components/empty-inventory";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { listRepositoryOptionsServer, listScansServer } from "@/lib/queries";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,9 +38,10 @@ export default async function ScansPage({
     return (
       <Card className="border-slate-200/80 bg-white/80 shadow-sm backdrop-blur">
         <CardHeader>
-          <CardTitle>Scans</CardTitle>
+          <h1 className="text-2xl font-semibold leading-none tracking-tight">Scans</h1>
           <CardDescription>No repositories have been uploaded yet.</CardDescription>
         </CardHeader>
+        <CardContent><EmptyInventory /></CardContent>
       </Card>
     );
   }
@@ -51,28 +54,30 @@ export default async function ScansPage({
     redirect(`/app/scans?repository_id=${repositoryId}&from=${fromDate}&to=${toDate}`);
   }
 
-  const scans = await listScansServer(repositoryId, startOfDayUtc(fromDate), endOfDayUtc(toDate));
-  const activeRepository = repositories.find((repository) => repository.id === repositoryId) ?? repositories[0];
+  const scans = repositories.some((repository) => repository.id === repositoryId)
+    ? await listScansServer(repositoryId, startOfDayUtc(fromDate), endOfDayUtc(toDate)) : [];
+  const activeRepository = repositories.find((repository) => repository.id === repositoryId);
 
   return (
     <section className="space-y-6">
       <Card className="border-slate-200/80 bg-white/80 shadow-sm backdrop-blur">
         <CardHeader>
-          <CardTitle>Scans</CardTitle>
+          <h1 className="text-2xl font-semibold leading-none tracking-tight">Scans</h1>
           <CardDescription>
-            Inspect scan runs for {activeRepository.name}. Filter by repository and date window.
+            Inspect scan runs for {activeRepository?.name ?? "an unavailable repository"}. Filter by repository and date window.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form className="grid gap-4 md:grid-cols-[1.2fr_0.9fr_0.9fr_auto] md:items-end" method="get">
-            <div className="grid gap-2">
+        <CardContent className="scan-filters-container">
+          <form className="scan-filters grid grid-cols-2 items-end gap-3" method="get">
+            <div className="col-span-2 grid min-w-0 gap-2">
               <Label htmlFor="repository_id">Repository</Label>
               <select
-                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                className="h-10 w-full min-w-0 max-w-full rounded-md border border-input bg-background px-3 text-sm"
                 id="repository_id"
                 name="repository_id"
                 defaultValue={repositoryId}
               >
+                {!activeRepository ? <option value={repositoryId}>Unavailable repository</option> : null}
                 {repositories.map((repository) => (
                   <option key={repository.id} value={repository.id}>
                     {repository.name}
@@ -80,15 +85,15 @@ export default async function ScansPage({
                 ))}
               </select>
             </div>
-            <div className="grid gap-2">
+            <div className="grid min-w-0 gap-2">
               <Label htmlFor="from">From</Label>
-              <Input id="from" name="from" type="date" defaultValue={fromDate} />
+              <Input className="w-full min-w-0 max-w-full" id="from" name="from" type="date" defaultValue={fromDate} />
             </div>
-            <div className="grid gap-2">
+            <div className="grid min-w-0 gap-2">
               <Label htmlFor="to">To</Label>
-              <Input id="to" name="to" type="date" defaultValue={toDate} />
+              <Input className="w-full min-w-0 max-w-full" id="to" name="to" type="date" defaultValue={toDate} />
             </div>
-            <Button type="submit">Apply</Button>
+            <Button className="col-span-2" type="submit">Apply</Button>
           </form>
         </CardContent>
       </Card>
@@ -97,10 +102,22 @@ export default async function ScansPage({
         <CardContent className="pt-6">
           {scans.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-sm text-slate-600">
-              No scans found for this window.
+              {activeRepository ? (
+                <>
+                  <p>No scans found for this window.</p>
+                  <Link className="my-3 inline-block underline" href={`/app/scans?${new URLSearchParams({ repository_id: repositoryId, from: "1970-01-01", to: formatDateInput(new Date()) })}`}>Show all scan dates</Link>
+                  <details>
+                    <summary className="cursor-pointer font-medium text-slate-900">How to upload a scan</summary>
+                    <div className="mt-3">
+                      <p className="mb-3">If this repository has no scanner uploads, upload a scan to create its history.</p>
+                      <EmptyInventory />
+                    </div>
+                  </details>
+                </>
+              ) : <p>This repository is unavailable. Select another repository above.</p>}
             </div>
           ) : (
-            <Table>
+            <Table layout="reflow" className="scan-history" aria-label="Scans">
               <TableHeader>
                 <TableRow>
                   <TableHead>Commit</TableHead>
@@ -113,14 +130,15 @@ export default async function ScansPage({
               <TableBody>
                 {scans.map((scan) => (
                   <TableRow key={scan.id}>
-                    <TableCell className="font-medium">{scan.commit_sha}</TableCell>
-                    <TableCell>{new Date(scan.scanned_at).toLocaleString()}</TableCell>
-                    <TableCell>{scan.manifest_count}</TableCell>
-                    <TableCell>{scan.dependency_count}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell mobileLabel="Commit" className="table-cell-wide table-cell-identity font-medium">{scan.commit_sha}</TableCell>
+                    <TableCell mobileLabel="Scanned at" className="table-cell-wide"><time dateTime={scan.scanned_at} title={new Date(scan.scanned_at).toISOString()}>{new Date(scan.scanned_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} <span className="inline-block whitespace-nowrap">{new Date(scan.scanned_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span></time></TableCell>
+                    <TableCell mobileLabel="Manifests">{scan.manifest_count}</TableCell>
+                    <TableCell mobileLabel="Dependencies">{scan.dependency_count}</TableCell>
+                    <TableCell mobileLabel="Open" className="table-cell-wide text-right">
                       <Link
                         className="font-medium text-slate-900 underline-offset-4 hover:underline"
-                        href={`/app/scans/${scan.id}`}
+                        aria-label={`Details for ${scan.commit_sha}`}
+                        href={`/app/scans/${scan.id}?${new URLSearchParams({ from: fromDate, to: toDate })}`}
                       >
                         Details
                       </Link>

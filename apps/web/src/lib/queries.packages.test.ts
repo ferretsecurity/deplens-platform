@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { listPackagesServer } from "./queries";
+import { listPackagesServer, listRepositoryOptionsServer } from "./queries";
 
 const mocks = vi.hoisted(() => ({
   serverApiFetch: vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<unknown>>()
@@ -28,4 +28,13 @@ describe("listPackagesServer", () => {
     mocks.serverApiFetch.mockResolvedValue({ ...response, pagination: { ...response.pagination, total: -1 } });
     await expect(listPackagesServer({ q: "", version: "", page: 1, page_size: 25 })).rejects.toThrow();
   });
+});
+
+it("reads repository options through the last response page", async () => {
+  mocks.serverApiFetch.mockReset();
+  mocks.serverApiFetch.mockResolvedValueOnce({ items: [{ id: "first" }], pagination: { page: 1, page_size: 100, has_next: true } })
+    .mockResolvedValueOnce({ items: [{ id: "beyond100" }], pagination: { page: 2, page_size: 100, has_next: false } });
+  await expect(listRepositoryOptionsServer()).resolves.toEqual([{ id: "first" }, { id: "beyond100" }]);
+  expect(mocks.serverApiFetch).toHaveBeenCalledTimes(2);
+  expect(mocks.serverApiFetch).toHaveBeenLastCalledWith("http://api.example/api/v1/repositories?page=2&page_size=100", { headers: { cookie: "deplens_session=test" } });
 });

@@ -44,8 +44,8 @@ export function ScannerReportCard({ reportState, scanId }: { reportState: Scanne
         {!report ? (
           <p className="text-sm text-slate-600">
             {reportState.kind === "absent"
-              ? "This scan has no native scanner report. Its uploaded inventory is shown below."
-              : "This report cannot be displayed here. Open the complete JSON report to inspect it. Its uploaded inventory is shown below."}
+              ? "This scan has no native scanner report. Its uploaded inventory is available in Manifests."
+              : "This report cannot be displayed here. Open the complete JSON report to inspect it. Its uploaded inventory is available in Manifests."}
           </p>
         ) : (
           <>

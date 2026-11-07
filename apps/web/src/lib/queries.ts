@@ -48,7 +48,14 @@ export async function listRepositoriesServer(params: ListRepositoriesParams = {}
 
 export async function listRepositoryOptionsServer() {
   const response = await listRepositoriesServer({ page: 1, page_size: 100 });
-  return response.items;
+  const items = [...response.items];
+  let pagination = response.pagination;
+  while (pagination.has_next) {
+    const next = await listRepositoriesServer({ page: pagination.page + 1, page_size: pagination.page_size });
+    items.push(...next.items);
+    pagination = next.pagination;
+  }
+  return items;
 }
 
 export async function listRepositoryManifestsServer(repositoryId: string) {

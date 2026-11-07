@@ -1,3 +1,4 @@
+import React from "react";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -8,6 +9,7 @@ import PackagesPage from "./page";
 
 const mocks = vi.hoisted(() => ({ listPackagesServer: vi.fn<typeof listPackagesServer>() }));
 vi.mock("@/lib/queries", () => mocks);
+vi.mock("@/components/empty-inventory", () => ({ EmptyInventory: () => <p>Upload guidance</p> }));
 
 const response = {
   items: [
