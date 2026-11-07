@@ -1,3 +1,4 @@
+import { EmptyInventory } from "@/components/empty-inventory";
 import React from "react";
 
 import { PagePagination } from "@/components/page-pagination";
@@ -31,13 +32,14 @@ export default async function DependenciesPage({ searchParams = Promise.resolve(
         <CardHeader>
           <h1 className="text-2xl font-semibold leading-none tracking-tight">Dependencies</h1>
           <CardDescription>
-            Active dependency usage across repositories and manifest files.
+            Summarized active dependencies with repository and manifest counts. Use Packages to find individual usages and paths.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {dependencies.items.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-sm text-slate-600">
-              No active dependencies found.
+              <p className="mb-3">No active dependencies found.</p>
+              <EmptyInventory />
             </div>
           ) : (
             <>

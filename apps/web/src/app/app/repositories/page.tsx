@@ -1,3 +1,4 @@
+import { EmptyInventory } from "@/components/empty-inventory";
 import React from "react";
 import { RepositorySources } from "@/components/repository-sources";
 import Link from "next/link";
@@ -101,7 +102,7 @@ export default async function RepositoriesPage({
 
           {repositories.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-sm text-slate-600">
-              {query ? "No repositories match this search." : "No repositories have been imported yet."}
+              {query || page > 1 ? <><p>{query ? "No repositories match this search." : "No repositories on this page."}</p><Link className="mt-3 inline-block underline" href="/app/repositories">Reset search and page</Link></> : <><p className="mb-3">No repositories have been imported yet.</p><EmptyInventory /></>}
             </div>
           ) : (
             <>

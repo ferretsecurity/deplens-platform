@@ -1,3 +1,4 @@
+import { EmptyInventory } from "@/components/empty-inventory";
 import { FilePath } from "@/components/file-path";
 import React from "react";
 import Link from "next/link";
@@ -69,7 +70,7 @@ export default async function PackagesPage({
         <CardHeader>
           <h1 className="text-2xl font-semibold leading-none tracking-tight">Packages</h1>
           <CardDescription>
-            Find package usages across repositories and manifest files from the CLI, Socket and Snyk.
+            Find each package’s repository, manifest path and version. Dependencies summarizes usage counts across the active inventory.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -115,7 +116,8 @@ export default async function PackagesPage({
                 ? "No package usages on this page."
                 : query || version
                   ? "No packages match this search."
-                  : "No active packages found."}
+                  : <p>No active packages found.</p>}
+              {query || version || page > 1 ? <Link className="mt-3 inline-block underline" href="/app/packages">Reset search and page</Link> : <div className="mt-3"><EmptyInventory /></div>}
             </div>
           ) : (
             <div className="space-y-6">

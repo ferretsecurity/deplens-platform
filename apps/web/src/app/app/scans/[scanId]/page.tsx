@@ -7,19 +7,27 @@ import { Separator } from "@/components/ui/separator";
 import { ScanInventory } from "@/components/scan-inventory";
 
 export default async function ScanDetailPage({
-  params
+  params,
+  searchParams
 }: {
+  searchParams?: Promise<{ from?: string; to?: string }>;
   params: Promise<{
     scanId: string;
   }>;
 }) {
   const { scanId } = await params;
+  const dates = (await searchParams) ?? {};
+  const returnParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(dates)) {
+    if ((key === "from" || key === "to") && value && /^\d{4}-\d{2}-\d{2}$/.test(value)) returnParams.set(key, value);
+  }
   const [scan, manifests, report] = await Promise.all([
     getScanServer(scanId),
     listScanManifestsServer(scanId),
     getScanReportServer(scanId)
   ]);
 
+  returnParams.set("repository_id", scan.repository_id);
   const repositories = await listRepositoryOptionsServer();
   const repository = repositories.find((item) => item.id === scan.repository_id);
 
@@ -28,7 +36,7 @@ export default async function ScanDetailPage({
       <div className="flex items-center justify-between gap-4">
         <div>
           <div className="text-sm text-slate-500 [overflow-wrap:anywhere]">
-            <Link className="underline-offset-4 hover:underline" href={`/app/scans?repository_id=${scan.repository_id}`}>
+            <Link className="underline-offset-4 hover:underline" href={`/app/scans?${returnParams}`}>
               Scans
             </Link>
             <span className="mx-2">/</span>

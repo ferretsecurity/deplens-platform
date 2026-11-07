@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef, useEffect } from "react";
 import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
 
 import { clientApiFetch } from "@/lib/api";
@@ -10,7 +10,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-const allowedScopes = ["scan:read", "scan:write", "scan:metadata:write"] as const;
+const allowedScopes = [
+  { id: "scan:read", help: "Read scan history and inventory" },
+  { id: "scan:write", help: "Upload scanner reports" },
+  { id: "scan:metadata:write", help: "Update scan labels and annotations" }
+];
+
+type Feedback =
+  | { kind: "idle" }
+  | { kind: "pending"; action: "save" | "delete" }
+  | { kind: "invalid"; field: "label" | "scopes"; message: string }
+  | { kind: "error" | "success"; message: string };
 
 type TokenManagementClientProps = {
   initialTokens: APITokenMetadata[];
@@ -27,8 +37,23 @@ export function TokenManagementClient({ initialTokens }: TokenManagementClientPr
   const [scopes, setScopes] = useState<string[]>([]);
   const [created, setCreated] = useState<CreatedAPIToken | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState<APITokenMetadata | null>(null);
-  const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<Feedback>({ kind: "idle" });
+  const labelRef = useRef<HTMLInputElement>(null);
+  const scopeRef = useRef<HTMLInputElement>(null);
+  const cancelDeleteRef = useRef<HTMLButtonElement>(null);
+  const actionOrigin = useRef<HTMLButtonElement | null>(null);
+  const focusAfterRender = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    focusAfterRender.current?.focus();
+    focusAfterRender.current = null;
+  });
+  const submitting = feedback.kind === "pending";
+  useEffect(() => {
+    if (mode.type === "edit") labelRef.current?.focus();
+  }, [mode]);
+  useEffect(() => {
+    if (confirmingDelete) cancelDeleteRef.current?.focus();
+  }, [confirmingDelete]);
 
   const submitLabel = mode.type === "edit" ? "Save token" : "Issue token";
   const sortedTokens = useMemo(
@@ -40,14 +65,14 @@ export function TokenManagementClient({ initialTokens }: TokenManagementClientPr
     setMode({ type: "create" });
     setLabel("");
     setScopes([]);
-    setError("");
+    setFeedback({ kind: "idle" });
   }
 
   function editToken(token: APITokenMetadata) {
     setMode({ type: "edit", token });
     setLabel(token.label);
     setScopes(token.scopes);
-    setError("");
+    setFeedback({ kind: "idle" });
   }
 
   function toggleScope(scope: string) {
@@ -60,16 +85,17 @@ export function TokenManagementClient({ initialTokens }: TokenManagementClientPr
     event.preventDefault();
     const trimmedLabel = label.trim();
     if (!trimmedLabel) {
-      setError("Label is required.");
+      setFeedback({ kind: "invalid", field: "label", message: "Label is required." });
+      labelRef.current?.focus();
       return;
     }
     if (scopes.length === 0) {
-      setError("Choose at least one scope.");
+      setFeedback({ kind: "invalid", field: "scopes", message: "Choose at least one scope." });
+      scopeRef.current?.focus();
       return;
     }
 
-    setSubmitting(true);
-    setError("");
+    setFeedback({ kind: "pending", action: "save" });
     try {
       if (mode.type === "edit") {
         const updated = await clientApiFetch<APITokenMetadata>(`/api/v1/tokens/${mode.token.id}`, {
@@ -78,6 +104,8 @@ export function TokenManagementClient({ initialTokens }: TokenManagementClientPr
         });
         setTokens((current) => current.map((token) => (token.id === updated.id ? updated : token)));
         resetForm();
+        setFeedback({ kind: "success", message: "Token updated." });
+        focusAfterRender.current = actionOrigin.current;
       } else {
         const item = await clientApiFetch<CreatedAPIToken>("/api/v1/tokens", {
           method: "POST",
@@ -86,25 +114,25 @@ export function TokenManagementClient({ initialTokens }: TokenManagementClientPr
         setTokens((current) => [item, ...current]);
         setCreated(item);
         resetForm();
+        setFeedback({ kind: "success", message: "Token issued. Store the one-time secret before dismissing it." });
+        focusAfterRender.current = labelRef.current;
       }
     } catch {
-      setError("Token change failed. Keep the current list visible and try again.");
-    } finally {
-      setSubmitting(false);
+      setFeedback({ kind: "error", message: "Token change failed. Your label and scopes are still here. Check your connection and try again." });
     }
   }
 
   async function deleteToken(token: APITokenMetadata) {
-    setSubmitting(true);
-    setError("");
+    setFeedback({ kind: "pending", action: "delete" });
     try {
       await clientApiFetch<void>(`/api/v1/tokens/${token.id}`, { method: "DELETE" });
       setTokens((current) => current.filter((item) => item.id !== token.id));
       setConfirmingDelete(null);
+      if (mode.type === "edit" && mode.token.id === token.id) resetForm();
+      setFeedback({ kind: "success", message: "Token deleted. Scanners using it can no longer authenticate." });
+      focusAfterRender.current = labelRef.current;
     } catch {
-      setError("Delete failed. The token list has not changed.");
-    } finally {
-      setSubmitting(false);
+      setFeedback({ kind: "error", message: "Delete failed. The token list has not changed. Check your connection and try again." });
     }
   }
 
@@ -128,47 +156,57 @@ export function TokenManagementClient({ initialTokens }: TokenManagementClientPr
         </div>
       ) : null}
 
-      <form className="grid gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]" onSubmit={submitToken}>
+      {feedback.kind === "success" ? <p role="status" className="text-sm text-emerald-800">{feedback.message}</p> : null}
+      {feedback.kind === "error" ? <p role="alert" className="text-sm text-red-700">{feedback.message}</p> : null}
+      <form aria-label={mode.type === "edit" ? "Edit token" : "Issue token"} aria-busy={submitting} className="grid gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]" onSubmit={submitToken}>
         <div className="space-y-2">
           <Label htmlFor="token-label">Label</Label>
           <Input
+            ref={labelRef}
+            disabled={submitting || !!confirmingDelete}
+            aria-invalid={feedback.kind === "invalid" && feedback.field === "label"}
+            aria-describedby={feedback.kind === "invalid" && feedback.field === "label" ? "token-label-error" : undefined}
             id="token-label"
             placeholder="CI scanner"
             value={label}
             onChange={(event) => setLabel(event.target.value)}
           />
         </div>
-        <div className="space-y-2">
-          <Label>Scopes</Label>
+        <fieldset disabled={submitting || !!confirmingDelete} aria-describedby={feedback.kind === "invalid" && feedback.field === "scopes" ? "token-scopes-error" : undefined} className="min-w-0 space-y-2">
+          <legend className="text-sm font-medium">Scopes</legend>
           <div className="flex flex-wrap gap-2">
             {allowedScopes.map((scope) => (
               <label
-                key={scope}
+                key={scope.id}
                 className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
               >
                 <input
-                  checked={scopes.includes(scope)}
+                  ref={scope.id === "scan:read" ? scopeRef : undefined}
+                  aria-label={scope.id}
+                  aria-describedby={`${scope.id}-help`}
+                  aria-invalid={feedback.kind === "invalid" && feedback.field === "scopes"}
+                  checked={scopes.includes(scope.id)}
                   className="h-4 w-4"
-                  onChange={() => toggleScope(scope)}
+                  onChange={() => toggleScope(scope.id)}
                   type="checkbox"
                 />
-                {scope}
+                <span><code>{scope.id}</code><span id={`${scope.id}-help`} className="block text-xs text-slate-500">{scope.help}</span></span>
               </label>
             ))}
           </div>
-        </div>
+        </fieldset>
         <div className="flex flex-wrap items-end gap-2">
-          <Button disabled={submitting} type="submit">
+          <Button disabled={submitting || !!confirmingDelete} type="submit">
             {mode.type === "edit" ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-            {submitLabel}
+            {submitting && feedback.action === "save" ? "Saving token…" : submitLabel}
           </Button>
           {mode.type === "edit" ? (
-            <Button type="button" variant="outline" onClick={resetForm}>
+            <Button type="button" variant="outline" disabled={submitting || !!confirmingDelete} onClick={() => { resetForm(); focusAfterRender.current = actionOrigin.current; }}>
               Cancel
             </Button>
           ) : null}
         </div>
-        {error ? <p className="text-sm text-red-600 xl:col-span-3">{error}</p> : null}
+        {feedback.kind === "invalid" ? <p id={`token-${feedback.field}-error`} role="alert" className="text-sm text-red-600 xl:col-span-3">{feedback.message}</p> : null}
       </form>
 
       {tokens.length === 0 ? (
@@ -211,7 +249,8 @@ export function TokenManagementClient({ initialTokens }: TokenManagementClientPr
                       variant="outline"
                       size="sm"
                       aria-label={`Edit ${token.label}`}
-                      onClick={() => editToken(token)}
+                      disabled={submitting || !!confirmingDelete}
+                      onClick={(event) => { actionOrigin.current = event.currentTarget; editToken(token); }}
                     >
                       <Pencil className="h-4 w-4" />
                       Edit
@@ -221,7 +260,8 @@ export function TokenManagementClient({ initialTokens }: TokenManagementClientPr
                       variant="destructive"
                       size="sm"
                       aria-label={`Delete ${token.label}`}
-                      onClick={() => setConfirmingDelete(token)}
+                      disabled={submitting || !!confirmingDelete}
+                      onClick={(event) => { actionOrigin.current = event.currentTarget; setFeedback({ kind: "idle" }); setConfirmingDelete(token); }}
                     >
                       <Trash2 className="h-4 w-4" />
                       Delete
@@ -235,25 +275,26 @@ export function TokenManagementClient({ initialTokens }: TokenManagementClientPr
       )}
 
       {confirmingDelete ? (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+        <div role="group" aria-label={`Delete ${confirmingDelete.label}?`} className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <p>
               Create a replacement, update CI or scanners, then delete{" "}
               <span className="font-medium">{confirmingDelete.label}</span>.
             </p>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setConfirmingDelete(null)}>
+              <Button type="button" variant="outline" size="sm" ref={cancelDeleteRef} disabled={submitting} onClick={() => { setConfirmingDelete(null); setFeedback({ kind: "idle" }); focusAfterRender.current = actionOrigin.current; }}>
                 Cancel
               </Button>
               <Button
                 type="button"
                 variant="destructive"
                 size="sm"
+                disabled={submitting}
                 aria-label={`Confirm delete ${confirmingDelete.label}`}
                 onClick={() => void deleteToken(confirmingDelete)}
               >
                 <Trash2 className="h-4 w-4" />
-                Confirm delete
+                {submitting ? "Deleting token…" : "Confirm delete"}
               </Button>
             </div>
           </div>

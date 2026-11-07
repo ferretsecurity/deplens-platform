@@ -103,3 +103,64 @@ describe("TokenManagementClient", () => {
     );
   });
 });
+
+it("links validation to fields and focuses the invalid field", async () => {
+  render(<TokenManagementClient initialTokens={initialTokens} />);
+  await userEvent.click(screen.getByRole("button", { name: "Issue token" }));
+  expect(screen.getByLabelText("Label")).toHaveFocus();
+  expect(screen.getByLabelText("Label")).toHaveAccessibleDescription("Label is required.");
+  await userEvent.type(screen.getByLabelText("Label"), "New scanner");
+  await userEvent.click(screen.getByRole("button", { name: "Issue token" }));
+  expect(screen.getByRole("group", { name: "Scopes" })).toHaveAccessibleDescription("Choose at least one scope.");
+  expect(screen.getByLabelText("scan:read")).toHaveFocus();
+});
+
+it("restores focus after editing and cancelling deletion", async () => {
+  render(<TokenManagementClient initialTokens={initialTokens} />);
+  const edit = screen.getByRole("button", { name: "Edit CI scanner" });
+  await userEvent.click(edit);
+  expect(screen.getByLabelText("Label")).toHaveFocus();
+  await userEvent.type(screen.getByLabelText("Label"), " abandoned");
+  await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(edit).toHaveFocus();
+  expect(screen.getByLabelText("Label")).toHaveValue("");
+  const remove = screen.getByRole("button", { name: "Delete CI scanner" });
+  await userEvent.click(remove);
+  expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
+  await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(remove).toHaveFocus();
+});
+
+it("keeps edits after failure, blocks conflicting actions while pending, and reports success", async () => {
+  let complete: ((response: Response) => void) | undefined;
+  vi.spyOn(global, "fetch").mockImplementationOnce(() => new Promise<Response>((resolve) => { complete = resolve; }))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ ...initialTokens[0], label: "Updated" }), { status: 200 }));
+  render(<TokenManagementClient initialTokens={initialTokens} />);
+  await userEvent.click(screen.getByRole("button", { name: "Edit CI scanner" }));
+  await userEvent.clear(screen.getByLabelText("Label"));
+  await userEvent.type(screen.getByLabelText("Label"), "Updated");
+  await userEvent.click(screen.getByRole("button", { name: "Save token" }));
+  expect(screen.getByRole("button", { name: "Saving token…" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Delete CI scanner" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+  complete?.(new Response("{}", { status: 500 }));
+  await screen.findByRole("alert");
+  expect(screen.getByLabelText("Label")).toHaveValue("Updated");
+  expect(screen.getByLabelText("scan:read")).toBeChecked();
+  await userEvent.click(screen.getByRole("button", { name: "Save token" }));
+  expect(await screen.findByRole("status")).toHaveTextContent("Token updated.");
+  await waitFor(() => expect(screen.getByRole("button", { name: "Edit Updated" })).toHaveFocus());
+});
+
+it("retains a failed deletion for retry and focuses the form after success", async () => {
+  vi.spyOn(global, "fetch").mockRejectedValueOnce(new Error("offline"))
+    .mockResolvedValueOnce(new Response(null, { status: 204 }));
+  render(<TokenManagementClient initialTokens={initialTokens} />);
+  await userEvent.click(screen.getByRole("button", { name: "Delete CI scanner" }));
+  await userEvent.click(screen.getByRole("button", { name: "Confirm delete CI scanner" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Delete failed");
+  expect(screen.getByRole("button", { name: "Confirm delete CI scanner" })).toBeEnabled();
+  await userEvent.click(screen.getByRole("button", { name: "Confirm delete CI scanner" }));
+  expect(await screen.findByRole("status")).toHaveTextContent("Token deleted.");
+  expect(screen.getByLabelText("Label")).toHaveFocus();
+});

@@ -1,3 +1,4 @@
+import { EmptyInventory } from "@/components/empty-inventory";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -39,6 +40,7 @@ export default async function ScansPage({
           <h1 className="text-2xl font-semibold leading-none tracking-tight">Scans</h1>
           <CardDescription>No repositories have been uploaded yet.</CardDescription>
         </CardHeader>
+        <CardContent><EmptyInventory /></CardContent>
       </Card>
     );
   }
@@ -51,8 +53,9 @@ export default async function ScansPage({
     redirect(`/app/scans?repository_id=${repositoryId}&from=${fromDate}&to=${toDate}`);
   }
 
-  const scans = await listScansServer(repositoryId, startOfDayUtc(fromDate), endOfDayUtc(toDate));
-  const activeRepository = repositories.find((repository) => repository.id === repositoryId) ?? repositories[0];
+  const scans = repositories.some((repository) => repository.id === repositoryId)
+    ? await listScansServer(repositoryId, startOfDayUtc(fromDate), endOfDayUtc(toDate)) : [];
+  const activeRepository = repositories.find((repository) => repository.id === repositoryId);
 
   return (
     <section className="space-y-6">
@@ -60,7 +63,7 @@ export default async function ScansPage({
         <CardHeader>
           <h1 className="text-2xl font-semibold leading-none tracking-tight">Scans</h1>
           <CardDescription>
-            Inspect scan runs for {activeRepository.name}. Filter by repository and date window.
+            Inspect scan runs for {activeRepository?.name ?? "an unavailable repository"}. Filter by repository and date window.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -73,6 +76,7 @@ export default async function ScansPage({
                 name="repository_id"
                 defaultValue={repositoryId}
               >
+                {!activeRepository ? <option value={repositoryId}>Unavailable repository ({repositoryId})</option> : null}
                 {repositories.map((repository) => (
                   <option key={repository.id} value={repository.id}>
                     {repository.name}
@@ -97,7 +101,10 @@ export default async function ScansPage({
         <CardContent className="pt-6">
           {scans.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-sm text-slate-600">
-              No scans found for this window.
+              <p>{activeRepository ? "No scans found for this window." : "This repository is unavailable. Select another repository above."}</p>
+              <Link className="my-3 inline-block underline" href={`/app/scans?${new URLSearchParams({ repository_id: repositoryId, from: "1970-01-01", to: formatDateInput(new Date()) })}`}>Show all scan dates</Link>
+              <p className="mb-3">If this repository has no scanner uploads, upload a scan to create its history.</p>
+              <EmptyInventory />
             </div>
           ) : (
             <Table layout="reflow" aria-label="Scans">
@@ -121,7 +128,7 @@ export default async function ScansPage({
                       <Link
                         className="font-medium text-slate-900 underline-offset-4 hover:underline"
                         aria-label={`Details for ${scan.commit_sha}`}
-                        href={`/app/scans/${scan.id}`}
+                        href={`/app/scans/${scan.id}?${new URLSearchParams({ from: fromDate, to: toDate })}`}
                       >
                         Details
                       </Link>
