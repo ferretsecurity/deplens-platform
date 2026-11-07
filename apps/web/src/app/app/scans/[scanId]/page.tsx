@@ -54,7 +54,7 @@ export default async function ScanDetailPage({
           <div className="col-span-2 min-w-0 sm:col-span-1"><dt className="text-slate-500">Commit</dt><dd className="break-all font-mono">{scan.commit_sha}</dd></div>
           <div><dt className="text-slate-500">Manifests</dt><dd className="font-medium">{scan.manifest_count}</dd></div>
           <div><dt className="text-slate-500">Dependencies</dt><dd className="font-medium">{scan.dependency_count}</dd></div>
-          <div className="col-span-2 sm:col-span-1"><dt className="text-slate-500">Scanned at</dt><dd><time dateTime={scan.scanned_at} title={new Date(scan.scanned_at).toISOString()}>{new Date(scan.scanned_at).toLocaleString("en-GB")}</time></dd></div>
+          <div className="col-span-2 sm:col-span-1"><dt className="text-slate-500">Scanned at</dt><dd><time dateTime={scan.scanned_at} title={new Date(scan.scanned_at).toISOString()}>{new Date(scan.scanned_at).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</time></dd></div>
         </dl>
       </div>
 

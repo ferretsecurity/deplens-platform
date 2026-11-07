@@ -145,7 +145,7 @@ export default async function PackagesPage({
                           <TableRow key={JSON.stringify(item)}>
                             <TableCell mobileLabel="Repository" className="table-cell-wide table-cell-identity">
                               <Link
-                                className="font-medium text-slate-900 underline-offset-4 hover:underline"
+                                className="font-medium text-blue-700 underline decoration-blue-300 underline-offset-4 hover:decoration-blue-700"
                                 href={`/app/repositories/${item.repository_id}/manifests`}
                               >
                                 {item.repository_name}

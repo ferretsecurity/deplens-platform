@@ -131,7 +131,7 @@ export default async function ScansPage({
                 {scans.map((scan) => (
                   <TableRow key={scan.id}>
                     <TableCell mobileLabel="Commit" className="table-cell-wide table-cell-identity font-medium">{scan.commit_sha}</TableCell>
-                    <TableCell mobileLabel="Scanned at" className="table-cell-wide"><time dateTime={scan.scanned_at} title={new Date(scan.scanned_at).toISOString()}>{new Date(scan.scanned_at).toLocaleDateString("en-GB")} <span className="inline-block whitespace-nowrap">{new Date(scan.scanned_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span></time></TableCell>
+                    <TableCell mobileLabel="Scanned at" className="table-cell-wide"><time dateTime={scan.scanned_at} title={new Date(scan.scanned_at).toISOString()}>{new Date(scan.scanned_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} <span className="inline-block whitespace-nowrap">{new Date(scan.scanned_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span></time></TableCell>
                     <TableCell mobileLabel="Manifests">{scan.manifest_count}</TableCell>
                     <TableCell mobileLabel="Dependencies">{scan.dependency_count}</TableCell>
                     <TableCell mobileLabel="Open" className="table-cell-wide text-right">
