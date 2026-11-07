@@ -80,20 +80,20 @@ export function ManifestComparison({ manifests, sources, snykSources = [] }: {
               const manifest = deplensFiles.get(path);
               return (
                 <TableRow key={path}>
-                  <TableCell mobileLabel="Path" className="table-cell-wide align-top font-medium"><FilePath path={path} /></TableCell>
+                  <TableCell mobileLabel="Path" className="table-cell-wide table-cell-identity align-top font-medium"><FilePath path={path} /></TableCell>
                   <TableCell mobileLabel="Deplens" className="table-cell-wide align-top">
                     {manifest ? (
                       <div className="space-y-1">
                         <p className={manifest.is_active ? "text-slate-900" : "text-slate-500"}>
                           {manifest.is_active ? "Active" : "Disappeared"}
                         </p>
-                        <p className="text-xs text-slate-500">First seen: {new Date(manifest.first_seen_at).toLocaleString()}</p>
-                        <p className="text-xs text-slate-500">Last seen: {new Date(manifest.last_seen_at).toLocaleString()}</p>
+                        <p className="text-xs text-slate-500">First seen: <time dateTime={manifest.first_seen_at} title={new Date(manifest.first_seen_at).toISOString()} className="inline-block">{new Date(manifest.first_seen_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} <span className="whitespace-nowrap">{new Date(manifest.first_seen_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span></time></p>
+                        <p className="text-xs text-slate-500">Last seen: <time dateTime={manifest.last_seen_at} title={new Date(manifest.last_seen_at).toISOString()} className="inline-block">{new Date(manifest.last_seen_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} <span className="whitespace-nowrap">{new Date(manifest.last_seen_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span></time></p>
                       </div>
                     ) : <span className="text-slate-500">Not found</span>}
                   </TableCell>
                   {providers.map((provider) => (
-                    <TableCell key={provider.name} mobileLabel={provider.name} className="table-cell-wide align-top">
+                    <TableCell key={provider.name} mobileLabel={provider.name} className="align-top">
                       {provider.files.has(path)
                         ? provider.availableFiles.has(path) ? "Detected" : "Detected in unavailable source"
                         : <span className="text-slate-500">{provider.missing}</span>}

@@ -141,7 +141,7 @@ export default async function PackagesPage({
                       <TableBody>
                         {usages.map((item) => (
                           <TableRow key={JSON.stringify(item)}>
-                            <TableCell mobileLabel="Repository" className="table-cell-wide">
+                            <TableCell mobileLabel="Repository" className="table-cell-wide table-cell-identity">
                               <Link
                                 className="font-medium text-slate-900 underline-offset-4 hover:underline"
                                 href={`/app/repositories/${item.repository_id}/manifests`}

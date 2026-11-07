@@ -112,7 +112,7 @@ export default async function RepositoriesPage({
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[24%]">Name</TableHead>
-                    <TableHead>Sources</TableHead><TableHead className="w-[28%]">URL</TableHead>
+                    <TableHead className="w-[28%]">URL</TableHead><TableHead>Sources</TableHead>
                     <TableHead>Default branch</TableHead>
                     <TableHead className="w-40 text-right">Actions</TableHead>
                   </TableRow>
@@ -120,8 +120,8 @@ export default async function RepositoriesPage({
                 <TableBody>
                   {repositories.map((repository) => (
                     <TableRow key={repository.id}>
-                      <TableCell mobileLabel="Name" className="table-cell-wide font-medium">{repository.name}</TableCell>
-                      <TableCell mobileLabel="Sources"><RepositorySources repository={repository} /></TableCell><TableCell mobileLabel="URL" className="table-cell-wide">
+                      <TableCell mobileLabel="Name" className="table-cell-wide table-cell-identity font-medium">{repository.name}</TableCell>
+                      <TableCell mobileLabel="URL" className="table-cell-wide">
                         <a
                           className="text-slate-600 underline-offset-4 hover:text-slate-900 hover:underline"
                           href={repository.url}
@@ -131,6 +131,7 @@ export default async function RepositoriesPage({
                           {repository.url}
                         </a>
                       </TableCell>
+                      <TableCell mobileLabel="Sources"><RepositorySources repository={repository} /></TableCell>
                       <TableCell mobileLabel="Default branch">{repository.default_branch}</TableCell>
                       <TableCell mobileLabel="Actions" className="table-cell-wide text-right">
                         <div className="flex flex-wrap gap-x-4 gap-y-2">

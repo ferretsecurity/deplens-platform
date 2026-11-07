@@ -55,7 +55,7 @@ export default async function DependenciesPage({ searchParams = Promise.resolve(
                     <TableRow
                       key={`${dependency.name}:${dependency.version}:${dependency.raw}:${index}`}
                     >
-                      <TableCell mobileLabel="Dependency" className="table-cell-wide font-medium">{dependencyDisplayName(dependency)}</TableCell>
+                      <TableCell mobileLabel="Dependency" className="table-cell-wide table-cell-identity font-medium">{dependencyDisplayName(dependency)}</TableCell>
                       <TableCell mobileLabel="Ecosystem">{dependency.ecosystem || "Unspecified"}</TableCell><TableCell mobileLabel="Repositories" className="text-right">{dependency.repository_count}</TableCell>
                       <TableCell mobileLabel="Manifest files" className="text-right">{dependency.manifest_file_count}</TableCell>
                     </TableRow>

@@ -182,14 +182,14 @@ export function TokenManagementClient({ initialTokens }: TokenManagementClientPr
               <TableHead>Label</TableHead>
               <TableHead>Scopes</TableHead>
               <TableHead>Created</TableHead>
-              <TableHead className="w-48 text-right">Actions</TableHead>
+              <TableHead className="w-56 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sortedTokens.map((token) => (
               <TableRow key={token.id}>
-                <TableCell mobileLabel="Label" className="table-cell-wide font-medium">{token.label}</TableCell>
-                <TableCell mobileLabel="Scopes" className="table-cell-wide">
+                <TableCell mobileLabel="Label" className="table-cell-wide table-cell-identity font-medium">{token.label}</TableCell>
+                <TableCell mobileLabel="Scopes">
                   <div className="flex flex-wrap gap-1.5">
                     {token.scopes.map((scope) => (
                       <span key={scope} className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-700">
@@ -198,13 +198,14 @@ export function TokenManagementClient({ initialTokens }: TokenManagementClientPr
                     ))}
                   </div>
                 </TableCell>
-                <TableCell mobileLabel="Created" className="table-cell-wide text-slate-600">
-                  {new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(
-                    new Date(token.created_at)
-                  )}
+                <TableCell mobileLabel="Created" className="text-slate-600">
+                  <time dateTime={token.created_at} title={new Date(token.created_at).toISOString()}>
+                    {new Date(token.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}{" "}
+                    <span className="inline-block whitespace-nowrap">{new Date(token.created_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
+                  </time>
                 </TableCell>
                 <TableCell mobileLabel="Actions" className="table-cell-wide text-right">
-                  <div className="flex flex-wrap gap-2">
+                  <div className="table-actions flex flex-wrap justify-end gap-2">
                     <Button
                       type="button"
                       variant="outline"

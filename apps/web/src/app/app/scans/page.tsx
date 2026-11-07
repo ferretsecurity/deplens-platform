@@ -64,8 +64,8 @@ export default async function ScansPage({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_auto] md:items-end" method="get">
-            <div className="grid min-w-0 gap-2">
+          <form className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_auto] md:items-end" method="get">
+            <div className="col-span-2 grid min-w-0 gap-2 xl:col-span-1">
               <Label htmlFor="repository_id">Repository</Label>
               <select
                 className="h-10 w-full min-w-0 max-w-full rounded-md border border-input bg-background px-3 text-sm"
@@ -88,7 +88,7 @@ export default async function ScansPage({
               <Label htmlFor="to">To</Label>
               <Input className="w-full min-w-0 max-w-full" id="to" name="to" type="date" defaultValue={toDate} />
             </div>
-            <Button type="submit">Apply</Button>
+            <Button className="col-span-2 xl:col-span-1" type="submit">Apply</Button>
           </form>
         </CardContent>
       </Card>
@@ -113,8 +113,8 @@ export default async function ScansPage({
               <TableBody>
                 {scans.map((scan) => (
                   <TableRow key={scan.id}>
-                    <TableCell mobileLabel="Commit" className="table-cell-wide font-medium">{scan.commit_sha}</TableCell>
-                    <TableCell mobileLabel="Scanned at" className="table-cell-wide">{new Date(scan.scanned_at).toLocaleString()}</TableCell>
+                    <TableCell mobileLabel="Commit" className="table-cell-wide table-cell-identity font-medium">{scan.commit_sha}</TableCell>
+                    <TableCell mobileLabel="Scanned at" className="table-cell-wide"><time dateTime={scan.scanned_at} title={new Date(scan.scanned_at).toISOString()}>{new Date(scan.scanned_at).toLocaleDateString("en-GB")} <span className="inline-block whitespace-nowrap">{new Date(scan.scanned_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span></time></TableCell>
                     <TableCell mobileLabel="Manifests">{scan.manifest_count}</TableCell>
                     <TableCell mobileLabel="Dependencies">{scan.dependency_count}</TableCell>
                     <TableCell mobileLabel="Open" className="table-cell-wide text-right">

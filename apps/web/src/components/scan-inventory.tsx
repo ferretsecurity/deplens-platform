@@ -40,7 +40,7 @@ function ManifestEntry({ manifest }: { manifest: ScanManifestItem }) {
                 <TableBody>
                   {manifest.dependencies.slice(view.page * dependenciesPerPage, (view.page + 1) * dependenciesPerPage).map((dependency) => (
                     <TableRow key={dependency.id}>
-                      <TableCell mobileLabel="Name" className="table-cell-wide font-medium">{dependency.name || dependency.raw}</TableCell>
+                      <TableCell mobileLabel="Name" className="table-cell-wide table-cell-identity font-medium">{dependency.name || dependency.raw}</TableCell>
                       <TableCell mobileLabel="Version">{dependency.version || "n/a"}</TableCell>
                       <TableCell mobileLabel="Constraint">{dependency.constraint || "n/a"}</TableCell>
                       <TableCell mobileLabel="Source">{dependency.source || "n/a"}</TableCell>

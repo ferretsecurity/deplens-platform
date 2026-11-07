@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { getScanReportServer, getScanServer, listScanManifestsServer } from "@/lib/queries";
+import { getScanReportServer, getScanServer, listScanManifestsServer, listRepositoryOptionsServer } from "@/lib/queries";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScannerReportCard } from "@/components/scanner-report-card";
 import { Separator } from "@/components/ui/separator";
@@ -20,12 +20,15 @@ export default async function ScanDetailPage({
     getScanReportServer(scanId)
   ]);
 
+  const repositories = await listRepositoryOptionsServer();
+  const repository = repositories.find((item) => item.id === scan.repository_id);
+
   return (
-    <section className="space-y-6">
+    <section className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <div className="text-sm text-slate-500">
-            <Link className="underline-offset-4 hover:underline" href="/app/scans">
+          <div className="text-sm text-slate-500 [overflow-wrap:anywhere]">
+            <Link className="underline-offset-4 hover:underline" href={`/app/scans?repository_id=${scan.repository_id}`}>
               Scans
             </Link>
             <span className="mx-2">/</span>
@@ -35,21 +38,19 @@ export default async function ScanDetailPage({
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-4">
-        {[
-          ["Commit", scan.commit_sha],
-          ["Manifests", String(scan.manifest_count)],
-          ["Dependencies", String(scan.dependency_count)],
-          ["Scanned at", new Date(scan.scanned_at).toLocaleString()]
-        ].map(([label, value]) => (
-          <Card key={label} className="border-slate-200/80 bg-white/80 shadow-sm backdrop-blur">
-            <CardHeader className="pb-3">
-              <CardDescription>{label}</CardDescription>
-              <CardTitle className={label === "Commit" ? "break-all font-mono text-sm leading-6" : "text-lg"}>{value}</CardTitle>
-            </CardHeader>
-          </Card>
-        ))}
+      <div className="rounded-xl border border-slate-200 bg-white/80 p-4 text-sm">
+        <Link className="font-semibold text-slate-950 underline-offset-4 hover:underline [overflow-wrap:anywhere]" href={`/app/repositories/${scan.repository_id}/manifests`}>
+          {repository?.name ?? scan.repository_id}
+        </Link>
+        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
+          <div className="col-span-2 min-w-0 sm:col-span-1"><dt className="text-slate-500">Commit</dt><dd className="break-all font-mono">{scan.commit_sha}</dd></div>
+          <div><dt className="text-slate-500">Manifests</dt><dd className="font-medium">{scan.manifest_count}</dd></div>
+          <div><dt className="text-slate-500">Dependencies</dt><dd className="font-medium">{scan.dependency_count}</dd></div>
+          <div className="col-span-2 sm:col-span-1"><dt className="text-slate-500">Scanned at</dt><dd><time dateTime={scan.scanned_at} title={new Date(scan.scanned_at).toISOString()}>{new Date(scan.scanned_at).toLocaleString("en-GB")}</time></dd></div>
+        </dl>
       </div>
+
+      <ScanInventory manifests={manifests.items} />
 
       <ScannerReportCard reportState={report} scanId={scanId} />
 
@@ -90,7 +91,6 @@ export default async function ScanDetailPage({
         </CardContent>
       </Card>
 
-      <ScanInventory manifests={manifests.items} />
     </section>
   );
 }
