@@ -1,3 +1,4 @@
+import React from "react";
 import { EmptyInventory } from "@/components/empty-inventory";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -66,9 +67,9 @@ export default async function ScansPage({
             Inspect scan runs for {activeRepository?.name ?? "an unavailable repository"}. Filter by repository and date window.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_auto] md:items-end" method="get">
-            <div className="col-span-2 grid min-w-0 gap-2 xl:col-span-1">
+        <CardContent className="scan-filters-container">
+          <form className="scan-filters grid grid-cols-2 items-end gap-3" method="get">
+            <div className="col-span-2 grid min-w-0 gap-2">
               <Label htmlFor="repository_id">Repository</Label>
               <select
                 className="h-10 w-full min-w-0 max-w-full rounded-md border border-input bg-background px-3 text-sm"
@@ -76,7 +77,7 @@ export default async function ScansPage({
                 name="repository_id"
                 defaultValue={repositoryId}
               >
-                {!activeRepository ? <option value={repositoryId}>Unavailable repository ({repositoryId})</option> : null}
+                {!activeRepository ? <option value={repositoryId}>Unavailable repository</option> : null}
                 {repositories.map((repository) => (
                   <option key={repository.id} value={repository.id}>
                     {repository.name}
@@ -92,7 +93,7 @@ export default async function ScansPage({
               <Label htmlFor="to">To</Label>
               <Input className="w-full min-w-0 max-w-full" id="to" name="to" type="date" defaultValue={toDate} />
             </div>
-            <Button className="col-span-2 xl:col-span-1" type="submit">Apply</Button>
+            <Button className="col-span-2" type="submit">Apply</Button>
           </form>
         </CardContent>
       </Card>
@@ -101,13 +102,22 @@ export default async function ScansPage({
         <CardContent className="pt-6">
           {scans.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-sm text-slate-600">
-              <p>{activeRepository ? "No scans found for this window." : "This repository is unavailable. Select another repository above."}</p>
-              <Link className="my-3 inline-block underline" href={`/app/scans?${new URLSearchParams({ repository_id: repositoryId, from: "1970-01-01", to: formatDateInput(new Date()) })}`}>Show all scan dates</Link>
-              <p className="mb-3">If this repository has no scanner uploads, upload a scan to create its history.</p>
-              <EmptyInventory />
+              {activeRepository ? (
+                <>
+                  <p>No scans found for this window.</p>
+                  <Link className="my-3 inline-block underline" href={`/app/scans?${new URLSearchParams({ repository_id: repositoryId, from: "1970-01-01", to: formatDateInput(new Date()) })}`}>Show all scan dates</Link>
+                  <details>
+                    <summary className="cursor-pointer font-medium text-slate-900">How to upload a scan</summary>
+                    <div className="mt-3">
+                      <p className="mb-3">If this repository has no scanner uploads, upload a scan to create its history.</p>
+                      <EmptyInventory />
+                    </div>
+                  </details>
+                </>
+              ) : <p>This repository is unavailable. Select another repository above.</p>}
             </div>
           ) : (
-            <Table layout="reflow" aria-label="Scans">
+            <Table layout="reflow" className="scan-history" aria-label="Scans">
               <TableHeader>
                 <TableRow>
                   <TableHead>Commit</TableHead>

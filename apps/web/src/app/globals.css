@@ -149,3 +149,45 @@ body {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+@container (min-width: 36rem) and (max-width: 48rem) {
+  .table-reflow:is(.repository-records, .package-usages, .scan-history) > tbody > tr {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .table-reflow:is(.repository-records, .package-usages, .scan-history) > tbody > tr > td {
+    grid-column: span 2;
+  }
+
+  .table-reflow:is(.repository-records, .package-usages, .scan-history) > tbody > tr > td:nth-child(-n + 2) {
+    grid-column: span 3;
+  }
+}
+
+.scan-filters-container {
+  container-type: inline-size;
+}
+
+@container (min-width: 36rem) {
+  .scan-filters {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+
+  .scan-filters > :first-child {
+    grid-column: 1 / -1;
+  }
+
+  .scan-filters > button {
+    grid-column: auto;
+  }
+}
+
+@container (min-width: 48rem) {
+  .scan-filters {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 0.9fr) auto;
+  }
+
+  .scan-filters > :first-child {
+    grid-column: auto;
+  }
+}

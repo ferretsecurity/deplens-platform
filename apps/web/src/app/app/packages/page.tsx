@@ -130,7 +130,7 @@ export default async function PackagesPage({
                     </p>
                   </div>
                   <div>
-                    <Table layout="reflow" aria-label={`${name} usages`}>
+                    <Table layout="reflow" className="package-usages" aria-label={`${name} usages`}>
                       <TableHeader>
                         <TableRow>
                           <TableHead className="w-[24%]">Repository</TableHead>

@@ -109,7 +109,7 @@ export default async function RepositoriesPage({
               <div className="text-sm text-slate-600">
                 Showing {firstResult}-{lastResult} of {pagination.total} repositories
               </div>
-              <Table layout="reflow" aria-label="Repositories">
+              <Table layout="reflow" className="repository-records" aria-label="Repositories">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[24%]">Name</TableHead>
