@@ -332,10 +332,18 @@ components:
             q: {type: string}
     PackageUsage:
       type: object
-      required: [source, name, version, constraint, ecosystem, repository_id, repository_name, manifest_path]
+      required: [source, name, origin_kind, destination, version, constraint, ecosystem, repository_id, repository_name, manifest_path]
       properties:
         source: {type: string, enum: [cli, socket, snyk]}
-        name: {type: string, minLength: 1}
+        name:
+          type: string
+          description: Declared name or alias. Empty for unnamed URL or Git references.
+        origin_kind:
+          type: string
+          description: Dependency origin reported by the scanner. Empty means unknown; independent of the provider in source.
+        destination:
+          type: string
+          description: Direct URL or Git target. Empty when not reported or not a URL/Git origin.
         version: {type: string}
         constraint: {type: string}
         ecosystem: {type: string}
@@ -447,7 +455,7 @@ components:
         source:
           type: string
         extras:
-          type: object
+          type: [object, "null"]
           additionalProperties:
             type: string
     RepositoryManifestListResponse:
@@ -864,16 +872,18 @@ paths:
     get:
       summary: Browse package usages for the current tenant
       description: >-
-        Lists named packages in active CLI manifests and available Socket and Snyk
-        snapshots. Identical usage rows are returned once. Different sources,
-        versions, constraints, ecosystems, repositories and manifest paths remain
+        Lists named dependencies in active CLI manifests and available Socket and Snyk
+        snapshots, plus unnamed CLI URL/Git references with a destination.
+        Excludes CLI local-path and workspace references, which remain in manifest details.
+        Named dependencies with unknown origin remain visible. Identical usage rows are returned once. Different sources,
+        versions, constraints, ecosystems, origins, destinations, repositories and manifest paths remain
         separate usages. Repository IDs and names use the linked inventory repository.
       parameters:
         - in: query
           name: q
           required: false
           schema: {type: string, maxLength: 200}
-          description: Literal case-insensitive substring search on the package name. Surrounding whitespace is removed.
+          description: Literal case-insensitive substring search on the package name or direct URL/Git destination. Surrounding whitespace is removed.
         - in: query
           name: page
           required: false

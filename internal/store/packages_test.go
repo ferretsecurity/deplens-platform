@@ -97,8 +97,8 @@ func TestListPackagesSearchesCurrentUsageAcrossSources(t *testing.T) {
 	reads := ScanStore{DB: db}
 	all, err := reads.ListPackages(ctx, PackageListFilter{TenantID: tenantID, PageSize: 100})
 	require.NoError(t, err)
-	require.Len(t, all.Items, 17)
-	require.Equal(t, 17, all.Pagination.Total)
+	require.Len(t, all.Items, 18)
+	require.Equal(t, 18, all.Pagination.Total)
 	for _, item := range all.Items {
 		require.NotEmpty(t, item.Name)
 		require.NotContains(t, item.Name, "secret")
@@ -112,8 +112,8 @@ func TestListPackagesSearchesCurrentUsageAcrossSources(t *testing.T) {
 
 	versionPage, err := reads.ListPackages(ctx, PackageListFilter{TenantID: tenantID, Query: "react", Version: "19"})
 	require.NoError(t, err)
-	require.Len(t, versionPage.Items, 4)
-	require.Equal(t, 4, versionPage.Pagination.Total)
+	require.Len(t, versionPage.Items, 5)
+	require.Equal(t, 5, versionPage.Pagination.Total)
 	isolated, err := reads.ListPackages(ctx, PackageListFilter{TenantID: tenantID, Version: "1"})
 	require.NoError(t, err)
 	for _, item := range isolated.Items {
@@ -128,6 +128,7 @@ func TestListPackagesSearchesCurrentUsageAcrossSources(t *testing.T) {
 		{Source: "cli", Name: "react", Constraint: "^19", RepositoryID: repositoryID, RepositoryName: "CLI repo", ManifestPath: &path},
 		{Source: "cli", Name: "react", Version: "18", RepositoryID: repositoryID, RepositoryName: "CLI repo", ManifestPath: &path},
 		{Source: "cli", Name: "react", Version: "19", RepositoryID: repositoryID, RepositoryName: "CLI repo", ManifestPath: &path},
+		{Source: "cli", Name: "react", OriginKind: "registry", Version: "19", RepositoryID: repositoryID, RepositoryName: "CLI repo", ManifestPath: &path},
 		{Source: "cli", Name: "react", Version: "19", RepositoryID: repositoryID, RepositoryName: "CLI repo", ManifestPath: &appPath},
 		{Source: "snyk", Name: "react", Version: "19", Ecosystem: "npm", RepositoryID: repositoryID, RepositoryName: "CLI repo", ManifestPath: &path},
 		{Source: "socket", Name: "react", Version: "19", Ecosystem: "npm", RepositoryID: repositoryID, RepositoryName: "CLI repo", ManifestPath: &path},
@@ -165,7 +166,7 @@ func TestListPackagesSearchesCurrentUsageAcrossSources(t *testing.T) {
 	for n := 1; n <= 6; n++ {
 		page, err := reads.ListPackages(ctx, PackageListFilter{TenantID: tenantID, Page: n, PageSize: 3})
 		require.NoError(t, err)
-		require.Equal(t, 17, page.Pagination.Total)
+		require.Equal(t, 18, page.Pagination.Total)
 		require.Equal(t, 6, page.Pagination.TotalPages)
 		require.Equal(t, n > 1, page.Pagination.HasPrevious)
 		require.Equal(t, n < 6, page.Pagination.HasNext)
@@ -181,7 +182,7 @@ func TestListPackagesSearchesCurrentUsageAcrossSources(t *testing.T) {
 		require.NotNil(t, page.Items)
 		require.Empty(t, page.Items)
 		if filter.Query == "" {
-			require.Equal(t, 17, page.Pagination.Total)
+			require.Equal(t, 18, page.Pagination.Total)
 		} else {
 			require.Zero(t, page.Pagination.Total)
 			require.Zero(t, page.Pagination.TotalPages)
@@ -237,4 +238,80 @@ func TestListPackagesVersionPagination(t *testing.T) {
 	}
 	_, err = reads.ListPackages(ctx, PackageListFilter{TenantID: tenant, Version: "^1"})
 	require.Error(t, err)
+}
+
+func TestListPackagesClassifiesOrigins(t *testing.T) {
+	ctx := context.Background()
+	db, databaseURL := openTestDatabase(t)
+	require.NoError(t, Migrate(databaseURL))
+	tenant := mustCreateTenant(t, ctx, db)
+	deps := []UploadDependencyParams{
+		{Name: ".", Source: "path", Extras: map[string]string{"source_path": "."}},
+		{Name: "~/", Source: "path", Extras: map[string]string{"path": "./"}},
+		{Name: "workspace-lib", Source: "workspace"},
+		{Name: "requests", Source: "registry", Version: "2", Extras: map[string]string{"source_url": "https://registry.example.com"}},
+		{Name: "legacy", Version: "2"},
+		{Name: "$echo", Source: "url", Extras: map[string]string{"source_url": "http://localhost:4545/echo.ts"}},
+		{Source: "url", Extras: map[string]string{"source_url": "https://example.com/unnamed.whl"}},
+		{Source: "git", Version: "2", Extras: map[string]string{"source_url": "git+https://example.com/repo.git"}},
+		{Name: "$echo", Source: "url", Extras: map[string]string{"source_url": "https://example.com/other.ts"}},
+		{Name: "$echo", Source: "url", Extras: map[string]string{"source_url": "https://example.com/other.ts", "marker": "test-only"}},
+		{Name: "future", Source: "future-origin"},
+		{Raw: "unsupported", Source: ""},
+		{Source: "url", Extras: map[string]string{"source_url": " "}},
+	}
+	for i := range deps {
+		deps[i].Position = i
+	}
+	_, err := (Store{DB: db}).CreateScan(ctx, UploadScanParams{
+		TenantID: tenant, RepositoryName: "Origins", URL: "https://example.com/origins.git", DefaultBranch: "main",
+		ArtifactKey: "origins", ArtifactSHA256: "origins", SchemaVersion: "v1alpha1", CommitSHA: "origins", ScannedAt: time.Now(),
+		Manifests: []UploadManifestParams{{Type: "mixed", Path: "manifest", Dependencies: deps}},
+	})
+	require.NoError(t, err)
+	reads := ScanStore{DB: db}
+	all, err := reads.ListPackages(ctx, PackageListFilter{TenantID: tenant, PageSize: 100})
+	require.NoError(t, err)
+	require.Equal(t, 7, all.Pagination.Total)
+	for _, item := range all.Items {
+		require.NotContains(t, []string{".", "~/", "workspace-lib"}, item.Name)
+		switch item.Name {
+		case "requests":
+			require.Equal(t, "registry", item.OriginKind)
+			require.Empty(t, item.Destination)
+		case "legacy":
+			require.Empty(t, item.OriginKind)
+		case "future":
+			require.Equal(t, "future-origin", item.OriginKind)
+		case "$echo":
+			require.Equal(t, "url", item.OriginKind)
+			require.NotEmpty(t, item.Destination)
+		case "":
+			require.Contains(t, []string{"url", "git"}, item.OriginKind)
+			require.NotEmpty(t, item.Destination)
+		}
+	}
+	for _, q := range []string{"unnamed.whl", "repo.git", "localhost:4545"} {
+		found, err := reads.ListPackages(ctx, PackageListFilter{TenantID: tenant, Query: q})
+		require.NoError(t, err)
+		require.Equal(t, 1, found.Pagination.Total, q)
+	}
+	var paged []PackageUsageItem
+	for page := 1; page <= 4; page++ {
+		result, err := reads.ListPackages(ctx, PackageListFilter{TenantID: tenant, Page: page, PageSize: 2})
+		require.NoError(t, err)
+		require.Equal(t, 7, result.Pagination.Total)
+		paged = append(paged, result.Items...)
+	}
+	require.Equal(t, all.Items, paged)
+	versioned, err := reads.ListPackages(ctx, PackageListFilter{TenantID: tenant, Version: "2"})
+	require.NoError(t, err)
+	require.Equal(t, 3, versioned.Pagination.Total)
+	var expected []PackageUsageItem
+	for _, item := range all.Items {
+		if item.Version == "2" {
+			expected = append(expected, item)
+		}
+	}
+	require.Equal(t, expected, versioned.Items)
 }

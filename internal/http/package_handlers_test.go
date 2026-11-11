@@ -21,7 +21,7 @@ func TestListPackagesParsesSearchAndPagination(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.Equal(t, store.PackageListFilter{TenantID: "tenant-1", Query: "REAct", Version: "1.103.1", Page: 2, PageSize: 10}, reads.listPackagesFilter)
-	require.JSONEq(t, `{"items":[{"source":"cli","name":"react","version":"19.1.0","constraint":"","ecosystem":"","repository_id":"11111111-1111-1111-1111-111111111111","repository_name":"Repo","manifest_path":null}],"pagination":{"page":2,"page_size":10,"total":1,"total_pages":1,"has_previous":false,"has_next":false},"filters":{"q":"REAct","version":"1.103.1"}}`, rr.Body.String())
+	require.JSONEq(t, `{"items":[{"source":"cli","origin_kind":"","destination":"","name":"react","version":"19.1.0","constraint":"","ecosystem":"","repository_id":"11111111-1111-1111-1111-111111111111","repository_name":"Repo","manifest_path":null}],"pagination":{"page":2,"page_size":10,"total":1,"total_pages":1,"has_previous":false,"has_next":false},"filters":{"q":"REAct","version":"1.103.1"}}`, rr.Body.String())
 }
 
 func TestListPackagesRejectsInvalidFiltersBeforeStore(t *testing.T) {

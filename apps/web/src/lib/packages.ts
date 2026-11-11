@@ -2,7 +2,9 @@ import { z } from "zod";
 
 export const packageUsageSchema = z.object({
   source: z.enum(["cli", "socket", "snyk"]),
-  name: z.string().min(1),
+  name: z.string(),
+  origin_kind: z.string(),
+  destination: z.string(),
   version: z.string(),
   constraint: z.string(),
   ecosystem: z.string(),

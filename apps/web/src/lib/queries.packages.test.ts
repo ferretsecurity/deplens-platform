@@ -10,7 +10,7 @@ vi.mock("./env", () => ({ env: { API_INTERNAL_BASE_URL: "http://api.example" } }
 vi.mock("next/headers", () => ({ cookies: async () => ({ toString: () => "deplens_session=test" }) }));
 
 const response = {
-  items: [{ source: "socket", name: "@scope/react", version: "19", constraint: "", ecosystem: "npm", repository_id: "11111111-1111-1111-1111-111111111111", repository_name: "Repo", manifest_path: null }],
+  items: [{ source: "socket", name: "@scope/react", origin_kind: "", destination: "", version: "19", constraint: "", ecosystem: "npm", repository_id: "11111111-1111-1111-1111-111111111111", repository_name: "Repo", manifest_path: null }],
   pagination: { page: 2, page_size: 10, total: 20, total_pages: 2, has_previous: true, has_next: false },
   filters: { version: "1.103.1", q: "@scope/react%" }
 };
@@ -26,6 +26,23 @@ describe("listPackagesServer", () => {
     mocks.serverApiFetch.mockResolvedValue({ ...response, items: [{ ...response.items[0], source: "unexpected" }] });
     await expect(listPackagesServer({ q: "", version: "", page: 1, page_size: 25 })).rejects.toThrow();
     mocks.serverApiFetch.mockResolvedValue({ ...response, pagination: { ...response.pagination, total: -1 } });
+    await expect(listPackagesServer({ q: "", version: "", page: 1, page_size: 25 })).rejects.toThrow();
+  });
+
+  it("accepts unnamed remote dependencies and preserves future origin kinds", async () => {
+    const remoteResponse = {
+      ...response,
+      items: [
+        { ...response.items[0], source: "cli", name: "", origin_kind: "url", destination: "https://example.test/package.whl" },
+        { ...response.items[0], source: "cli", origin_kind: "future-origin" }
+      ]
+    };
+    mocks.serverApiFetch.mockResolvedValue(remoteResponse);
+    await expect(listPackagesServer({ q: "", version: "", page: 1, page_size: 25 })).resolves.toEqual(remoteResponse);
+  });
+
+  it.each(["origin_kind", "destination"])("requires the %s API field", async (field) => {
+    mocks.serverApiFetch.mockResolvedValue({ ...response, items: [{ ...response.items[0], [field]: undefined }] });
     await expect(listPackagesServer({ q: "", version: "", page: 1, page_size: 25 })).rejects.toThrow();
   });
 });

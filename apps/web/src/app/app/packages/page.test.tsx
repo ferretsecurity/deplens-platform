@@ -13,8 +13,8 @@ vi.mock("@/components/empty-inventory", () => ({ EmptyInventory: () => <p>Upload
 
 const response = {
   items: [
-    { source: "cli", name: "@scope/react", version: "19", constraint: "^19", ecosystem: "", repository_id: "11111111-1111-1111-1111-111111111111", repository_name: "CLI repo", manifest_path: "packages/app/package.json" },
-    { source: "socket", name: "@scope/react", version: "19", constraint: "", ecosystem: "npm", repository_id: "22222222-2222-2222-2222-222222222222", repository_name: "Socket repo", manifest_path: null }
+    { source: "cli", name: "@scope/react", origin_kind: "registry", destination: "", version: "19", constraint: "^19", ecosystem: "", repository_id: "11111111-1111-1111-1111-111111111111", repository_name: "CLI repo", manifest_path: "packages/app/package.json" },
+    { source: "socket", name: "@scope/react", origin_kind: "", destination: "", version: "19", constraint: "", ecosystem: "npm", repository_id: "22222222-2222-2222-2222-222222222222", repository_name: "Socket repo", manifest_path: null }
   ],
   pagination: { page: 1, page_size: 25, total: 2, total_pages: 1, has_previous: false, has_next: false },
   filters: { version: "", q: "" }
@@ -35,7 +35,7 @@ describe("PackagesPage", () => {
     await expect(PackagesPage({})).rejects.toThrow("server error");
   });
 
-  it("shows package usages with source, repository and manifest file", async () => {
+  it("shows package usages with origin, provider, repository and manifest file", async () => {
     mocks.listPackagesServer.mockResolvedValue(response);
     render(await PackagesPage({}));
     expect(mocks.listPackagesServer).toHaveBeenCalledWith({ q: "", version: "", page: 1, page_size: 25 });
@@ -48,10 +48,45 @@ describe("PackagesPage", () => {
     expect(screen.getByText("19 / ^19")).toBeInTheDocument();
     expect(screen.getByText("CLI")).toBeInTheDocument();
     expect(screen.getByText("Socket")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Origin" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Provider" })).toBeInTheDocument();
+    expect(screen.getByText("Registry")).toBeInTheDocument();
+    expect(screen.getByText("Unknown")).toBeInTheDocument();
     expect(screen.getByText("npm")).toBeInTheDocument();
     expect(screen.getByText("packages/app/package.json")).toBeInTheDocument();
     expect(screen.getByText("Not reported")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Socket repo" })).toHaveAttribute("href", "/app/repositories/22222222-2222-2222-2222-222222222222/manifests");
+  });
+
+  it("shows remote aliases and destinations and groups unnamed usages by destination", async () => {
+    const destination = "https://example.test/shared.whl";
+    mocks.listPackagesServer.mockResolvedValue({
+      ...response,
+      items: [
+        { ...response.items[0], name: "archive-alias", origin_kind: "url", destination: "https://example.test/archive.whl" },
+        { ...response.items[0], name: "git-alias", origin_kind: "git", destination: "git+ssh://git@example.test/repo.git" },
+        { ...response.items[0], name: "", origin_kind: "url", destination },
+        { ...response.items[1], name: "  ", origin_kind: "url", destination },
+        { ...response.items[0], name: "", origin_kind: "git", destination: "github:acme/other" },
+        { ...response.items[0], name: "future-package", origin_kind: "future-origin", destination: "" }
+      ],
+      pagination: { ...response.pagination, total: 6 }
+    });
+    render(await PackagesPage({}));
+
+    const archive = within(screen.getByRole("region", { name: "archive-alias" }));
+    expect(archive.getByText("URL")).toBeInTheDocument();
+    expect(archive.getByText("https://example.test/archive.whl")).toBeInTheDocument();
+    const git = within(screen.getByRole("region", { name: "git-alias" }));
+    expect(git.getByText("Git")).toBeInTheDocument();
+    expect(git.getByText("git+ssh://git@example.test/repo.git")).toBeInTheDocument();
+    const unnamed = within(screen.getByRole("region", { name: destination }));
+    expect(unnamed.getByRole("heading", { name: destination })).toBeInTheDocument();
+    expect(unnamed.getByText("2 usages on this page")).toBeInTheDocument();
+    expect(unnamed.getAllByText(destination)).toHaveLength(3);
+    expect(screen.getByRole("heading", { name: "github:acme/other" })).toBeInTheDocument();
+    expect(screen.getByText("future-origin")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /example.test|github:acme/ })).not.toBeInTheDocument();
   });
 
   it("groups nonadjacent usages by exact package name while keeping each usage's details", async () => {

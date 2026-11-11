@@ -72,7 +72,7 @@ export type ManifestDependencyItem = {
   constraint: string;
   section: string;
   source: string;
-  extras: Record<string, string>;
+  extras: Record<string, string> | null;
 };
 
 export type DependencyListItem = {
