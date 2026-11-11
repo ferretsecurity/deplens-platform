@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ListPagination } from "@/components/list-pagination";
 import type { ScanManifestItem } from "@/lib/types";
+import { dependencyOriginLabel } from "@/lib/dependency-origin";
 
 type ManifestView = { kind: "collapsed" } | { kind: "expanded"; page: number };
 const dependenciesPerPage = 100;
@@ -36,14 +37,24 @@ function ManifestEntry({ manifest }: { manifest: ScanManifestItem }) {
             <>
               <ListPagination page={view.page} pageSize={dependenciesPerPage} total={manifest.dependencies.length} onPageChange={(page) => setView({ kind: "expanded", page })} />
               <Table layout="reflow" aria-label="Manifest dependencies">
-                <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Version</TableHead><TableHead>Constraint</TableHead><TableHead>Source</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Version</TableHead><TableHead>Constraint</TableHead><TableHead>Origin</TableHead><TableHead>Declaration</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {manifest.dependencies.slice(view.page * dependenciesPerPage, (view.page + 1) * dependenciesPerPage).map((dependency) => (
                     <TableRow key={dependency.id}>
                       <TableCell mobileLabel="Name" className="table-cell-wide table-cell-identity font-medium">{dependency.name || dependency.raw}</TableCell>
                       <TableCell mobileLabel="Version">{dependency.version || "n/a"}</TableCell>
                       <TableCell mobileLabel="Constraint">{dependency.constraint || "n/a"}</TableCell>
-                      <TableCell mobileLabel="Source">{dependency.source || "n/a"}</TableCell>
+                      <TableCell mobileLabel="Origin">{dependencyOriginLabel(dependency.source)}</TableCell>
+                      <TableCell mobileLabel="Declaration" className="table-cell-wide [overflow-wrap:anywhere]">
+                        {(dependency.extras?.source_path || dependency.extras?.path) && (
+                          <div>Path: {dependency.extras.source_path || dependency.extras.path}</div>
+                        )}
+                        {(dependency.source === "url" || dependency.source === "git") && dependency.extras?.source_url && (
+                          <div>Destination: {dependency.extras.source_url}</div>
+                        )}
+                        {dependency.extras?.editable === "true" && <div>Editable</div>}
+                        <div className="text-sm text-slate-600">Raw: {dependency.raw || "Not reported"}</div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

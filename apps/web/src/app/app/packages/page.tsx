@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ApiError } from "@/lib/api";
 import { listPackagesServer } from "@/lib/queries";
 import type { PackageUsage } from "@/lib/packages";
+import { dependencyOriginLabel } from "@/lib/dependency-origin";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -59,9 +60,10 @@ export default async function PackagesPage({
   const lastResult = items.length ? firstResult + items.length - 1 : 0;
   const packageGroups = new Map<string, PackageUsage[]>();
   for (const item of items) {
-    const usages = packageGroups.get(item.name);
+    const identity = item.name.trim() || item.destination;
+    const usages = packageGroups.get(identity);
     if (usages) usages.push(item);
-    else packageGroups.set(item.name, [item]);
+    else packageGroups.set(identity, [item]);
   }
 
   return (
@@ -70,7 +72,7 @@ export default async function PackagesPage({
         <CardHeader>
           <h1 className="text-2xl font-semibold leading-none tracking-tight">Packages</h1>
           <CardDescription>
-            Find each package’s repository, manifest path and version. Dependencies summarizes usage counts across the active inventory.
+            Find packages and direct URL or Git dependencies by repository, manifest and version. Local paths and workspace references remain in manifest details.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -83,7 +85,7 @@ export default async function PackagesPage({
                 id="q"
                 name="q"
                 type="search"
-                placeholder="Search by package name"
+                placeholder="Search by package name or destination"
                 defaultValue={query}
                 maxLength={200}
               />
@@ -133,11 +135,12 @@ export default async function PackagesPage({
                     <Table layout="reflow" className="package-usages" aria-label={`${name} usages`}>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[24%]">Repository</TableHead>
-                          <TableHead className="w-[30%]">Manifest file</TableHead>
+                          <TableHead className="w-[20%]">Repository</TableHead>
+                          <TableHead className="w-[20%]">Manifest file</TableHead>
                           <TableHead>Version / constraint</TableHead>
                           <TableHead>Ecosystem</TableHead>
-                          <TableHead>Source</TableHead>
+                          <TableHead className="w-[25%]">Origin</TableHead>
+                          <TableHead>Provider</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -156,7 +159,13 @@ export default async function PackagesPage({
                               {[item.version, item.constraint].filter(Boolean).join(" / ") || "Unspecified"}
                             </TableCell>
                             <TableCell mobileLabel="Ecosystem">{item.ecosystem || "Unspecified"}</TableCell>
-                            <TableCell mobileLabel="Source">{sourceLabels[item.source]}</TableCell>
+                            <TableCell mobileLabel="Origin" className="table-cell-wide">
+                              <div>{dependencyOriginLabel(item.origin_kind)}</div>
+                              {(item.origin_kind === "url" || item.origin_kind === "git") && item.destination ? (
+                                <div className="[overflow-wrap:anywhere] mt-1 text-sm text-slate-600">{item.destination}</div>
+                              ) : null}
+                            </TableCell>
+                            <TableCell mobileLabel="Provider">{sourceLabels[item.source]}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

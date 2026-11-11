@@ -21,6 +21,8 @@ type PackageListFilter struct {
 type PackageUsageItem struct {
 	Source         string  `json:"source"`
 	Name           string  `json:"name"`
+	OriginKind     string  `json:"origin_kind"`
+	Destination    string  `json:"destination"`
 	Version        string  `json:"version"`
 	Constraint     string  `json:"constraint"`
 	Ecosystem      string  `json:"ecosystem"`
@@ -70,7 +72,7 @@ func (s ScanStore) ListPackages(ctx context.Context, filter PackageListFilter) (
 		for rows.Next() {
 			var item PackageUsageItem
 			if err := rows.Scan(&item.Source, &item.Name, &item.Version, &item.Constraint, &item.Ecosystem,
-				&item.RepositoryID, &item.RepositoryName, &item.ManifestPath); err != nil {
+				&item.RepositoryID, &item.RepositoryName, &item.ManifestPath, &item.OriginKind, &item.Destination); err != nil {
 				return PackageListPage{}, err
 			}
 			if !packageMatchesVersion(item, filter.Version) {
@@ -116,24 +118,28 @@ const packageCandidatesSQL = `
 		with usages as (
 			select 'cli'::text as source, d.name, d.version, d."constraint",
 				d.package_type as ecosystem,
-				r.id as repository_id, nullif(m.path, '') as manifest_path
+				r.id as repository_id, nullif(m.path, '') as manifest_path,
+				d.source as origin_kind,
+				case when d.source in ('url', 'git') then coalesce(btrim(d.extras->>'source_url'), '') else '' end as destination
 			from manifest_dependencies d
 			join scan_manifests sm on sm.id = d.scan_manifest_id
 			join manifests m on m.id = sm.manifest_id
 			join repositories r on r.id = m.repository_id
-			where r.tenant_id = $1 and m.disappeared_at is null and btrim(d.name) <> ''
+			where r.tenant_id = $1 and m.disappeared_at is null
+				and d.source not in ('path', 'workspace')
+				and (btrim(d.name) <> '' or (d.source in ('url', 'git') and btrim(coalesce(d.extras->>'source_url', '')) <> ''))
 			union all
 			select 'socket',
 				case when coalesce(a->>'namespace', '') <> '' then (a->>'namespace') || '/' || (a->>'name') else a->>'name' end,
 				coalesce(a->>'version', ''), '', coalesce(a->>'type', ''),
-				coalesce(sr.cli_repository_id, sr.id), nullif(ref->>'file', '')
+				coalesce(sr.cli_repository_id, sr.id), nullif(ref->>'file', ''), '' as origin_kind, '' as destination
 			from socket_repositories sr join socket_connections c on c.id = sr.connection_id
 			cross join lateral jsonb_array_elements(nullif(sr.snapshot->'artifacts', 'null'::jsonb)) a
 			left join lateral jsonb_array_elements(nullif(a->'manifestFiles', 'null'::jsonb)) ref on true
 			where c.tenant_id = $1 and sr.available and btrim(coalesce(a->>'name', '')) <> ''
 			union all
 			select 'snyk', a->>'name', coalesce(a->>'version', ''), '', coalesce(a->>'type', ''),
-				coalesce(sr.cli_repository_id, linked.cli_repository_id, sr.socket_repository_id, sr.id), nullif(ref->>'file', '')
+				coalesce(sr.cli_repository_id, linked.cli_repository_id, sr.socket_repository_id, sr.id), nullif(ref->>'file', ''), '' as origin_kind, '' as destination
 			from snyk_repositories sr join snyk_connections c on c.id = sr.connection_id
 			left join socket_repositories linked on linked.id = sr.socket_repository_id
 				and exists (select 1 from socket_connections lc where lc.id = linked.connection_id and lc.tenant_id = $1)
@@ -142,9 +148,9 @@ const packageCandidatesSQL = `
 			where c.tenant_id = $1 and sr.available and btrim(coalesce(a->>'name', '')) <> ''
 		), filtered as (
 			select distinct u.source, u.name, u.version, u."constraint", u.ecosystem,
-				r.id as repository_id, r.name as repository_name, u.manifest_path
+				r.id as repository_id, r.name as repository_name, u.manifest_path, u.origin_kind, u.destination
 			from usages u join inventory_repositories r on r.id = u.repository_id and r.tenant_id = $1
-			where $2 = '' or u.name ilike $3 escape '\'
+			where $2 = '' or u.name ilike $3 escape '\' or u.destination ilike $3 escape '\'
 		)`
 
-const packageOrderSQL = `order by lower(name), name, version, "constraint", ecosystem, source, repository_id, repository_name, manifest_path nulls first`
+const packageOrderSQL = `order by lower(name), name, version, "constraint", ecosystem, source, repository_id, repository_name, manifest_path nulls first, origin_kind, destination`
