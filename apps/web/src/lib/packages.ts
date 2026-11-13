@@ -1,6 +1,14 @@
 import { z } from "zod";
 
 export const packageUsageSchema = z.object({
+  assessment: z.object({
+    status: z.enum(["issue", "warning", "unknown"]),
+    scope: z.enum(["project", "workspace", "repository"]),
+    root: z.string(),
+    reasons: z.array(z.string()),
+    lockfiles: z.array(z.string()),
+    manifests: z.array(z.string())
+  }).optional(),
   source: z.enum(["cli", "socket", "snyk"]),
   name: z.string(),
   origin_kind: z.string(),
@@ -23,7 +31,7 @@ export const packageListResponseSchema = z.object({
     has_previous: z.boolean(),
     has_next: z.boolean()
   }),
-  filters: z.object({ q: z.string(), version: z.string() })
+  filters: z.object({ q: z.string(), version: z.string(), ecosystem: z.string().optional(), affected_range: z.string().optional() })
 });
 
 export type PackageUsage = z.infer<typeof packageUsageSchema>;

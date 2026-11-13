@@ -6,29 +6,34 @@ import (
 	"fmt"
 	"math"
 	"strings"
+
+	"github.com/ferretsecurity/deplens-platform/internal/assessment"
 )
 
 const DefaultPackagePageSize = 25
 
 type PackageListFilter struct {
-	TenantID string
-	Query    string
-	Version  string
-	Page     int
-	PageSize int
+	TenantID      string
+	Query         string
+	Version       string
+	Ecosystem     string
+	AffectedRange string
+	Page          int
+	PageSize      int
 }
 
 type PackageUsageItem struct {
-	Source         string  `json:"source"`
-	Name           string  `json:"name"`
-	OriginKind     string  `json:"origin_kind"`
-	Destination    string  `json:"destination"`
-	Version        string  `json:"version"`
-	Constraint     string  `json:"constraint"`
-	Ecosystem      string  `json:"ecosystem"`
-	RepositoryID   string  `json:"repository_id"`
-	RepositoryName string  `json:"repository_name"`
-	ManifestPath   *string `json:"manifest_path"`
+	Assessment     *assessment.Evidence `json:"assessment,omitempty"`
+	Source         string               `json:"source"`
+	Name           string               `json:"name"`
+	OriginKind     string               `json:"origin_kind"`
+	Destination    string               `json:"destination"`
+	Version        string               `json:"version"`
+	Constraint     string               `json:"constraint"`
+	Ecosystem      string               `json:"ecosystem"`
+	RepositoryID   string               `json:"repository_id"`
+	RepositoryName string               `json:"repository_name"`
+	ManifestPath   *string              `json:"manifest_path"`
 }
 
 type PackageListPage struct {
@@ -38,8 +43,10 @@ type PackageListPage struct {
 }
 
 type PackageFilters struct {
-	Query   string `json:"q"`
-	Version string `json:"version"`
+	Ecosystem     string `json:"ecosystem,omitempty"`
+	AffectedRange string `json:"affected_range,omitempty"`
+	Query         string `json:"q"`
+	Version       string `json:"version"`
 }
 
 func (s ScanStore) ListPackages(ctx context.Context, filter PackageListFilter) (PackageListPage, error) {
@@ -57,6 +64,10 @@ func (s ScanStore) ListPackages(ctx context.Context, filter PackageListFilter) (
 	if filter.PageSize > 100 || int64(filter.Page-1) > math.MaxInt64/int64(filter.PageSize) {
 		return PackageListPage{}, fmt.Errorf("package pagination is out of range")
 	}
+	if filter.AffectedRange != "" || filter.Ecosystem != "" {
+		return s.assessPackages(ctx, filter)
+	}
+
 	offset := int64(filter.Page-1) * int64(filter.PageSize)
 
 	var itemsJSON []byte

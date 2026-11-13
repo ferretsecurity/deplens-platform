@@ -254,6 +254,16 @@ components:
           type: string
         path:
           type: string
+        form:
+          type: string
+          description: Source form reported by the scanner, such as manifest or lockfile.
+        extraction:
+          type: string
+          description: Complete, partial, failed, or unsupported extraction. Missing means unknown.
+        lockfiles:
+          type: [array, "null"]
+          items: {type: string}
+          description: Corresponding lockfile paths within the same scan. Null means mapping was not reported.
         has_dependencies:
           type: [boolean, "null"]
         dependencies:
@@ -330,10 +340,15 @@ components:
           required: [q]
           properties:
             q: {type: string}
+            version: {type: string}
+            ecosystem: {type: string}
+            affected_range: {type: string}
     PackageUsage:
       type: object
       required: [source, name, origin_kind, destination, version, constraint, ecosystem, repository_id, repository_name, manifest_path]
       properties:
+        assessment:
+          $ref: "#/components/schemas/AssessmentEvidence"
         source: {type: string, enum: [cli, socket, snyk]}
         name:
           type: string
@@ -352,6 +367,16 @@ components:
         manifest_path:
           type: [string, "null"]
           description: Null when the source does not report a manifest file.
+    AssessmentEvidence:
+      type: object
+      required: [status, scope, root, reasons, lockfiles, manifests]
+      properties:
+        status: {type: string, enum: [issue, warning, unknown]}
+        scope: {type: string, enum: [project, workspace, repository]}
+        root: {type: string}
+        reasons: {type: array, items: {type: string}}
+        lockfiles: {type: array, items: {type: string}}
+        manifests: {type: array, items: {type: string}}
     PaginationMetadata:
       type: object
       required: [page, page_size, total, total_pages, has_previous, has_next]
@@ -883,7 +908,19 @@ paths:
           name: q
           required: false
           schema: {type: string, maxLength: 200}
-          description: Literal case-insensitive substring search on the package name or direct URL/Git destination. Surrounding whitespace is removed.
+          description: Literal case-insensitive substring search on the package name or direct URL/Git destination, or exact ecosystem-normalized package identity when affected_range is supplied. Surrounding whitespace is removed.
+        - in: query
+          name: version
+          schema: {type: string, maxLength: 200}
+          description: Concrete version. Mutually exclusive with affected_range.
+        - in: query
+          name: ecosystem
+          schema: {type: string, enum: [npm, pypi, pip, cargo, go, maven, nuget, gem, rubygems, composer]}
+          description: Required with affected_range.
+        - in: query
+          name: affected_range
+          schema: {type: string, maxLength: 200}
+          description: Native ecosystem constraint identifying affected versions. Requires q and ecosystem. Returns issues, warnings, and unknown evidence instead of ordinary usages.
         - in: query
           name: page
           required: false
@@ -900,7 +937,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/PackageListResponse"
         "400":
-          description: Invalid query length or pagination, including an offset outside the supported integer range.
+          description: Invalid package identity, ecosystem, range, version, or pagination.
         "401":
           description: A tenant session or bearer token with scan:read is required.
   /api/v1/dependencies:

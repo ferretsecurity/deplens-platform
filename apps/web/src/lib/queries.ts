@@ -73,13 +73,15 @@ export async function listDependenciesServer() {
   });
 }
 
-export async function listPackagesServer(params: { q: string; version: string; page: number; page_size: number }) {
+export async function listPackagesServer(params: { q: string; version: string; page: number; page_size: number; ecosystem?: string; affected_range?: string }) {
   const searchParams = new URLSearchParams({
     q: params.q,
     version: params.version,
     page: String(params.page),
     page_size: String(params.page_size)
   });
+  if (params.ecosystem) searchParams.set("ecosystem", params.ecosystem);
+  if (params.affected_range) searchParams.set("affected_range", params.affected_range);
   const response = await serverApiFetch<unknown>(
     `${env.API_INTERNAL_BASE_URL}/api/v1/packages?${searchParams.toString()}`,
     { headers: await cookieHeaders() }

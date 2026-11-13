@@ -12,9 +12,11 @@ type scannerReport struct {
 }
 
 type scannerSource struct {
-	Detector string `json:"detector"`
-	Path     string `json:"path"`
-	Analysis struct {
+	Detector  string   `json:"detector"`
+	Form      string   `json:"form"`
+	Lockfiles []string `json:"lockfiles"`
+	Path      string   `json:"path"`
+	Analysis  struct {
 		Presence   string `json:"presence"`
 		Extraction string `json:"extraction"`
 	} `json:"analysis"`
@@ -66,7 +68,7 @@ func SnapshotFromReport(payload json.RawMessage) (SnapshotInput, error) {
 		if source.Detector == "" || source.Path == "" {
 			return SnapshotInput{}, fmt.Errorf("source detector and path are required")
 		}
-		manifest := ManifestInput{Type: source.Detector, Path: source.Path, Warnings: []string{}, Dependencies: []DependencyInput{}}
+		manifest := ManifestInput{Form: source.Form, Extraction: source.Analysis.Extraction, Lockfiles: source.Lockfiles, Type: source.Detector, Path: source.Path, Warnings: []string{}, Dependencies: []DependencyInput{}}
 		switch source.Analysis.Presence {
 		case "present":
 			present := true

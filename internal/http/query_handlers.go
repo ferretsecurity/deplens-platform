@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/alexedwards/scs/v2"
+	"github.com/ferretsecurity/deplens-platform/internal/assessment"
 	"github.com/ferretsecurity/deplens-platform/internal/auth"
 	"github.com/ferretsecurity/deplens-platform/internal/blob"
 	"github.com/ferretsecurity/deplens-platform/internal/store"
@@ -137,6 +138,16 @@ func (s ProductionQueryService) ListPackages(r *http.Request, token string) (any
 	if err := store.ValidatePackageVersion(version); err != nil {
 		return nil, newBadRequestError(err)
 	}
+	ecosystem := strings.TrimSpace(r.URL.Query().Get("ecosystem"))
+	affectedRange := strings.TrimSpace(r.URL.Query().Get("affected_range"))
+	if ecosystem != "" || affectedRange != "" {
+		if version != "" {
+			return nil, newBadRequestError(fmt.Errorf("use either version or affected_range"))
+		}
+		if _, err := assessment.NewQuery(ecosystem, query, affectedRange); err != nil {
+			return nil, newBadRequestError(err)
+		}
+	}
 	page, err := parsePositiveIntQuery(r, "page", 1)
 	if err != nil {
 		return nil, newBadRequestError(err)
@@ -152,7 +163,7 @@ func (s ProductionQueryService) ListPackages(r *http.Request, token string) (any
 		return nil, newBadRequestError(fmt.Errorf("page is out of range"))
 	}
 	return s.Reads.ListPackages(r.Context(), store.PackageListFilter{
-		TenantID: tenantID, Query: query, Version: version, Page: page, PageSize: pageSize,
+		TenantID: tenantID, Query: query, Version: version, Ecosystem: ecosystem, AffectedRange: affectedRange, Page: page, PageSize: pageSize,
 	})
 }
 

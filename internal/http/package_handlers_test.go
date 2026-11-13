@@ -75,3 +75,23 @@ func (packageTokenLookup) FindToken(_ context.Context, hash string) (string, []s
 	}
 	return "", nil, errUnauthorized
 }
+
+func TestAssessmentFilters(t *testing.T) {
+	reads := &fakeQueryStore{}
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/packages?q=widget&ecosystem=npm&affected_range=%3E0.0.0%20%3C%3D2.3.4", nil)
+	req.Header.Set("Authorization", "Bearer bootstrap-token")
+	rr := httptest.NewRecorder()
+	newTestQueryRouterWithStore(t, reads).ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	require.Equal(t, "npm", reads.listPackagesFilter.Ecosystem)
+	require.Equal(t, ">0.0.0 <=2.3.4", reads.listPackagesFilter.AffectedRange)
+	for _, query := range []string{"q=widget&ecosystem=npm", "q=widget&affected_range=%3C3", "q=widget&ecosystem=unknown&affected_range=%3C3", "ecosystem=npm&affected_range=%3C3", "q=widget&ecosystem=npm&affected_range=latest", "q=widget&ecosystem=npm&affected_range=%3C3&version=2.3.4"} {
+		reads := &fakeQueryStore{}
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/packages?"+query, nil)
+		req.Header.Set("Authorization", "Bearer bootstrap-token")
+		rr := httptest.NewRecorder()
+		newTestQueryRouterWithStore(t, reads).ServeHTTP(rr, req)
+		require.Equal(t, http.StatusBadRequest, rr.Code, query)
+		require.Zero(t, reads.listPackagesCalls)
+	}
+}

@@ -1,11 +1,12 @@
 module github.com/ferretsecurity/deplens-platform
 
-go 1.25.0
+go 1.26
 
 require (
 	deps.dev/util/semver v0.0.0-20260529052642-cf1e78d92744
 	github.com/alexedwards/scs/pgxstore v0.0.0-20251002162104-209de6e426de
 	github.com/alexedwards/scs/v2 v2.8.0
+	github.com/git-pkgs/vers v0.7.2
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/pressly/goose/v3 v3.24.3
