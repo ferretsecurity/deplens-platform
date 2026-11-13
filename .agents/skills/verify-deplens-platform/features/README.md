@@ -7,6 +7,7 @@ Use the parent skill to launch a fresh stack. Baseline is one owner, one default
 - [Repositories](repositories.md): search, clear, manifest files and scan entry points.
 - [Scans](scans.md): public upload, repository/date filters and scan details.
 - [Package search](packages.md): concrete versions, constraints, pagination and clear. Executable LiteLLM driver.
+- [Vulnerability assessments](assessments.md): manifest and lockfile evidence, affected ranges, and the scanner-to-browser journey.
 - [Dependencies](dependencies.md): active inventory and pagination.
 
 The token, repository, scan and dependency journeys are source-grounded recipes, not claims of executed coverage. Each proof records the feature ID and entry point, action trace, resulting screenshot/ARIA snapshot, and public readback for mutations. A path listed in a feature remains unverified until driven, even if another entry point passed.

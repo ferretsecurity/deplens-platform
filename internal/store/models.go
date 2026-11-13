@@ -44,6 +44,9 @@ type UploadScanParams struct {
 }
 
 type UploadManifestParams struct {
+	Form            string
+	Extraction      string
+	Lockfiles       []string
 	Position        int
 	Type            string
 	Path            string

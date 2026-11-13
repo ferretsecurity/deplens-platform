@@ -76,6 +76,7 @@ export default async function PackagesPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <Link className="text-blue-700 underline" href="/app/packages/assess">Assess a vulnerable version range</Link>
           <form className="flex flex-col gap-3 sm:flex-row" method="get" action="/app/packages">
             <div className="grid flex-1 gap-2">
               <Label className="sr-only" htmlFor="q">

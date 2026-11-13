@@ -37,6 +37,9 @@ type SnapshotInput struct {
 }
 
 type ManifestInput struct {
+	Form            string            `json:"form,omitempty"`
+	Extraction      string            `json:"extraction,omitempty"`
+	Lockfiles       []string          `json:"lockfiles"`
 	Type            string            `json:"type"`
 	Path            string            `json:"path"`
 	HasDependencies *bool             `json:"has_dependencies"`

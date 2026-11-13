@@ -51,7 +51,8 @@ func (s Service) Upload(ctx context.Context, tenantID string, input UploadReques
 			})
 		}
 		manifests = append(manifests, store.UploadManifestParams{
-			Position:        manifestIdx,
+			Position: manifestIdx,
+			Form:     manifest.Form, Extraction: manifest.Extraction, Lockfiles: manifest.Lockfiles,
 			Type:            manifest.Type,
 			Path:            manifest.Path,
 			HasDependencies: manifest.HasDependencies,

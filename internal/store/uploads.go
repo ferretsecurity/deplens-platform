@@ -159,12 +159,16 @@ func insertScanManifests(ctx context.Context, tx pgx.Tx, scanID string, reposito
 			return err
 		}
 
+		lockfilesJSON, err := json.Marshal(manifest.Lockfiles)
+		if err != nil {
+			return err
+		}
 		var scanManifestID string
 		err = tx.QueryRow(ctx, `
-			insert into scan_manifests (scan_id, manifest_id, position, type, has_dependencies, warnings)
-			values ($1, $2, $3, $4, $5, $6::jsonb)
+			insert into scan_manifests (scan_id, manifest_id, position, type, has_dependencies, warnings, form, extraction, lockfiles)
+			values ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9::jsonb)
 			returning id
-		`, scanID, manifestID, manifest.Position, manifest.Type, manifest.HasDependencies, string(warningsJSON)).Scan(&scanManifestID)
+		`, scanID, manifestID, manifest.Position, manifest.Type, manifest.HasDependencies, string(warningsJSON), manifest.Form, manifest.Extraction, string(lockfilesJSON)).Scan(&scanManifestID)
 		if err != nil {
 			return err
 		}
