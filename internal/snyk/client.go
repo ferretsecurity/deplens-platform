@@ -27,10 +27,27 @@ type Client struct {
 	slots chan struct{}
 }
 
+type Resource string
+
+const (
+	ResourceTargets         Resource = "targets"
+	ResourceProjects        Resource = "projects"
+	ResourceDependencyGraph Resource = "dependency_graph"
+)
+
+type HTTPError struct {
+	StatusCode int
+	Resource   Resource
+}
+
+func (e *HTTPError) Error() string {
+	return fmt.Sprintf("Snyk request failed (HTTP %d); check token permissions and organization", e.StatusCode)
+}
+
 func NewClient() *Client {
 	return &Client{HTTP: &http.Client{Timeout: 90 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, slots: make(chan struct{}, 4)}
 }
-func (c *Client) get(ctx context.Context, region, endpoint, token string, out interface{}) error {
+func (c *Client) get(ctx context.Context, region, endpoint, token string, resource Resource, out interface{}) error {
 	host, ok := regions[region]
 	if !ok {
 		return ErrConfig
@@ -87,7 +104,7 @@ func (c *Client) get(ctx context.Context, region, endpoint, token string, out in
 					}
 				}
 			} else {
-				e = fmt.Errorf("Snyk request failed (HTTP %d); check token permissions and organization", resp.StatusCode)
+				e = &HTTPError{StatusCode: resp.StatusCode, Resource: resource}
 			}
 			resp.Body.Close()
 		} else {
@@ -182,7 +199,7 @@ func (c *Client) Repositories(ctx context.Context, org, region, token string) ([
 				Next string `json:"next"`
 			} `json:"links"`
 		}
-		if e := c.get(ctx, region, endpoint, token, &page); e != nil {
+		if e := c.get(ctx, region, endpoint, token, ResourceTargets, &page); e != nil {
 			return nil, e
 		}
 		if page.Data == nil {
@@ -214,7 +231,7 @@ func (c *Client) Repositories(ctx context.Context, org, region, token string) ([
 				Next string `json:"next"`
 			} `json:"links"`
 		}
-		if e := c.get(ctx, region, endpoint, token, &page); e != nil {
+		if e := c.get(ctx, region, endpoint, token, ResourceProjects, &page); e != nil {
 			return nil, e
 		}
 		if page.Data == nil {
@@ -314,7 +331,7 @@ func (c *Client) Snapshot(ctx context.Context, org, region, token string, repo R
 			continue
 		}
 		var response graphResponse
-		if e := c.get(ctx, region, "/v1/org/"+url.PathEscape(org)+"/project/"+url.PathEscape(p.ID)+"/dep-graph", token, &response); e != nil {
+		if e := c.get(ctx, region, "/v1/org/"+url.PathEscape(org)+"/project/"+url.PathEscape(p.ID)+"/dep-graph", token, ResourceDependencyGraph, &response); e != nil {
 			return result, e
 		}
 		graph := response.DepGraph

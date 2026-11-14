@@ -18,6 +18,7 @@ func NewSnykRouter(sessions *scs.SessionManager, service *snyk.Service, appURL s
 	mux := http.NewServeMux()
 	respond := func(w http.ResponseWriter, result interface{}, err error) {
 		if err != nil {
+			var upstream *snyk.HTTPError
 			status := http.StatusBadGateway
 			message := "Snyk operation could not be completed. Check the connection and try again."
 			switch {
@@ -30,6 +31,19 @@ func NewSnykRouter(sessions *scs.SessionManager, service *snyk.Service, appURL s
 			case errors.Is(err, pgx.ErrNoRows):
 				status = http.StatusNotFound
 				message = "Not found"
+			case errors.As(err, &upstream):
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadGateway)
+				_ = json.NewEncoder(w).Encode(map[string]struct {
+					Code           string        `json:"code"`
+					UpstreamStatus int           `json:"upstream_status"`
+					Resource       snyk.Resource `json:"resource"`
+				}{"error": {
+					Code:           "snyk_upstream_error",
+					UpstreamStatus: upstream.StatusCode,
+					Resource:       upstream.Resource,
+				}})
+				return
 			}
 			http.Error(w, message, status)
 			return

@@ -25,6 +25,14 @@ export const snykInventorySchema = z.object({
 
 export type SnykInventory = z.infer<typeof snykInventorySchema>;
 
+const snykUpstreamErrorSchema = z.object({
+  error: z.object({
+    code: z.literal("snyk_upstream_error"),
+    upstream_status: z.number().int().min(100).max(599).refine((status) => status !== 200),
+    resource: z.enum(["targets", "projects", "dependency_graph"])
+  })
+});
+
 export async function snykRequest(path = "", init?: RequestInit) {
   const response = await fetch(`/api/v1/integrations/snyk${path}`, {
     ...init,
@@ -32,6 +40,17 @@ export async function snykRequest(path = "", init?: RequestInit) {
     headers: { "Content-Type": "application/json" }
   });
   if (!response.ok) {
+    if (response.status === 502) {
+      const result: unknown = await response.json().catch(() => null);
+      const upstream = snykUpstreamErrorSchema.safeParse(result);
+      if (upstream.success) {
+        const { upstream_status: status, resource } = upstream.data.error;
+        const label = { targets: "targets", projects: "projects", dependency_graph: "dependency graphs" }[resource];
+        throw new Error(status === 403 && (resource === "projects" || resource === "targets")
+          ? `Snyk denied access to ${label} (HTTP 403). Ask your Snyk administrator to check View Projects (org.project.read) and organization API access for this token in the configured organization.`
+          : `Snyk could not read ${label} (HTTP ${status}). Check the Snyk connection and try again.`);
+      }
+    }
     throw new Error(response.status === 403
       ? "Administrator access is required."
       : response.status === 409

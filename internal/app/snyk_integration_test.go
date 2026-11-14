@@ -3,10 +3,12 @@ package app
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -67,6 +69,39 @@ func TestSnykHTTPAuthorization(t *testing.T) {
 	if code, result := call("GET", "/api/v1/integrations/snyk", "", "", "application/json"); code != 200 || strings.Contains(result, "fixture-secret") || strings.Contains(result, "token_cipher") {
 		t.Fatalf("configuration leaks token or failed: %d", code)
 	}
+	t.Run("upstream projects denial", func(t *testing.T) {
+		upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch {
+			case strings.HasSuffix(r.URL.Path, "/targets"):
+				fmt.Fprint(w, `{"data":[],"links":{}}`)
+			case strings.HasSuffix(r.URL.Path, "/projects"):
+				w.WriteHeader(http.StatusForbidden)
+				fmt.Fprint(w, `{"message":"untrusted-upstream-secret fixture-secret"}`)
+			default:
+				t.Errorf("unexpected Snyk request: %s", r.URL.Path)
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+		defer upstream.Close()
+		target, err := url.Parse(upstream.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		application.Snyk.Client.HTTP.Transport = socketFixtureTransport{target}
+		code, result := call("POST", "/api/v1/integrations/snyk/test", "", "", "application/json")
+		if code != http.StatusBadGateway || strings.TrimSpace(result) != `{"error":{"code":"snyk_upstream_error","upstream_status":403,"resource":"projects"}}` {
+			t.Fatalf("expected safe upstream diagnostic with local HTTP 502, got %d %s", code, result)
+		}
+	})
+	t.Run("internal error stays generic", func(t *testing.T) {
+		if _, err := db.Exec(context.Background(), `update snyk_connections set token_cipher=$1 where tenant_id=$2`, []byte("internal-cipher-secret"), boot.TenantID); err != nil {
+			t.Fatal(err)
+		}
+		code, result := call("POST", "/api/v1/integrations/snyk/test", "", "", "application/json")
+		if code != http.StatusBadGateway || strings.TrimSpace(result) != "Snyk operation could not be completed. Check the connection and try again." {
+			t.Fatalf("expected generic internal error, got %d %s", code, result)
+		}
+	})
 	var repository string
 	if e = db.QueryRow(context.Background(), `insert into repositories(tenant_id,name,url,default_branch)values($1,'Fixture','https://github.com/fixture/repo','main')returning id`, boot.TenantID).Scan(&repository); e != nil {
 		t.Fatal(e)

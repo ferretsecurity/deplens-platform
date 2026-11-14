@@ -9,6 +9,10 @@
 
 For a temporary OAuth access token, choose bearer authentication. OAuth tokens expire and the integration does not refresh them. Use an API token for unattended synchronization.
 
+For a personal access token, select **API token** authentication.
+
+If **Test connection** reports HTTP 403 for projects or targets, ask your Snyk administrator to check **View Projects** (`org.project.read`) and organization API access for the token's user or service account. A successful targets request does not prove that projects are accessible. The HTTP status identifies the denied request but does not establish its cause.
+
 Find the organization UUID in Snyk organization settings. The organization slug used in browser URLs is a different value. See the official [REST API setup guide](https://docs.snyk.io/snyk-api/rest-api/getting-started-with-the-rest-api) and [API authentication guide](https://docs.snyk.io/snyk-api/authentication-for-api).
 
 An omitted token preserves the saved credential. API responses show whether a token is configured and never return its value. Disconnect removes this tenant's Snyk configuration and imports. Deplens scans and Socket imports remain.
