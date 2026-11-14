@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, LogOut, ScanLine, FolderKanban, Shield, ChevronDown, KeyRound, PackageSearch, Plug } from "lucide-react";
+import { Menu, LogOut, ScanLine, FolderKanban, Shield, ShieldCheck, ChevronDown, KeyRound, PackageSearch, Plug } from "lucide-react";
 
 import { logout } from "@/lib/auth";
 import type { CurrentUser } from "@/lib/types";
@@ -36,6 +36,7 @@ const navItems = [
   { href: "/app/packages", label: "Packages", icon: PackageSearch },
   { href: "/app/dependencies", label: "Dependencies", icon: PackageSearch, Plug },
   { href: "/app/scans", label: "Scans", icon: ScanLine },
+  { href: "/app/checks", label: "Checks", icon: ShieldCheck },
   { href: "/app/tokens", label: "API Tokens", icon: KeyRound }
 ];
 

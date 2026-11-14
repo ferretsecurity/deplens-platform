@@ -44,6 +44,9 @@ export default async function ScanDetailPage({
           </div>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Scan details</h1>
         </div>
+        <Link className="text-sm font-medium text-slate-900 underline-offset-4 hover:underline" href={`/app/checks?${new URLSearchParams({ repository_id: scan.repository_id, scan_id: scan.id })}`}>
+          Checks
+        </Link>
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white/80 p-4 text-sm">
