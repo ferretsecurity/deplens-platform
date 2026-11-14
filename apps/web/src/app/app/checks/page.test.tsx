@@ -78,6 +78,23 @@ describe("ChecksPage", () => {
     expect(scanForm.getByRole("option", { name: new RegExp(otherLatest.id) })).toHaveValue(otherLatest.id);
   });
 
+  it("uses the first value when filter parameters repeat", async () => {
+    render(await ChecksPage({ searchParams: Promise.resolve({ repository_id: ["repo-2", "repo-1"], scan_id: [otherOlder.id, older.id], page: ["1", "2"] }) }));
+
+    expect(screen.getByRole("combobox", { name: "Repository" })).toHaveValue("repo-2");
+    expect(screen.getByRole("combobox", { name: "Scan" })).toHaveValue(otherOlder.id);
+    expect(screen.getByText(otherOlder.commit_sha)).toBeVisible();
+    expect(mocks.getScanReportServer).toHaveBeenCalledExactlyOnceWith(otherOlder.id);
+  });
+
+  it("keeps a repeated invalid scan selection unavailable", async () => {
+    render(await ChecksPage({ searchParams: Promise.resolve({ scan_id: ["bad", "worse"] }) }));
+
+    expect(screen.getByText("This scan is unavailable. Select another scan or clear the scan filter above.")).toBeVisible();
+    expect(mocks.getScanServer).not.toHaveBeenCalled();
+    expect(mocks.getScanReportServer).not.toHaveBeenCalled();
+  });
+
   it("limits a repository-only filter to that project's latest scan and offers its history", async () => {
     render(await ChecksPage({ searchParams: Promise.resolve({ repository_id: "repo-1" }) }));
 

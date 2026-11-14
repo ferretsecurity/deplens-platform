@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api";
 import { getScanReportServer, getScanServer, listRepositoryOptionsServer, listScansServer } from "@/lib/queries";
 
-type ChecksParams = { repository_id?: string; scan_id?: string; page?: string };
+type ChecksParams = { repository_id?: string | string[]; scan_id?: string | string[]; page?: string | string[] };
 type Repository = Awaited<ReturnType<typeof listRepositoryOptionsServer>>[number];
 type Scan = Awaited<ReturnType<typeof getScanServer>>;
 type ProjectChecks = {
@@ -23,8 +23,8 @@ type Selection =
   | { kind: "missing-repository" | "missing-scan" | "scan-repository-mismatch" };
 
 async function loadChecks(params: ChecksParams) {
-  const repositoryId = params.repository_id?.trim() ?? "";
-  const scanId = params.scan_id?.trim() ?? "";
+  const repositoryId = (Array.isArray(params.repository_id) ? params.repository_id[0] : params.repository_id)?.trim() ?? "";
+  const scanId = (Array.isArray(params.scan_id) ? params.scan_id[0] : params.scan_id)?.trim() ?? "";
   const repositories = await listRepositoryOptionsServer();
   const repository = repositories.find((item) => item.id === repositoryId);
   const filters = { repositories, repositoryId, scanId };
@@ -55,7 +55,7 @@ async function loadChecks(params: ChecksParams) {
     ? repositories.filter((item) => item.id === exactScan.repository_id)
     : repository ? [repository] : repositories;
   const totalPages = Math.max(1, Math.ceil(scopedRepositories.length / 10));
-  const requestedPage = Number(params.page);
+  const requestedPage = Number(Array.isArray(params.page) ? params.page[0] : params.page);
   const page = Math.min(totalPages, Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1);
   const visibleRepositories = scopedRepositories.slice((page - 1) * 10, page * 10);
   const projects = await Promise.all(visibleRepositories.map(async (item): Promise<ProjectChecks> => {
