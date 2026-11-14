@@ -39,6 +39,7 @@ describe("AppShell", () => {
 
     expect(screen.getAllByRole("link", { name: /api tokens/i })[0]).toHaveAttribute("href", "/app/tokens");
     expect(screen.getAllByRole("link", { name: /^packages$/i })[0]).toHaveAttribute("href", "/app/packages");
+    expect(screen.getByRole("link", { name: "Checks" })).toHaveAttribute("href", "/app/checks");
   });
 
   it("names the menu and marks only the active destination", async () => {
@@ -51,9 +52,10 @@ describe("AppShell", () => {
     const drawer = within(screen.getByRole("dialog"));
     expect(drawer.getByRole("link", { name: "API Tokens" })).toHaveAttribute("aria-current", "page");
     expect(drawer.getByRole("link", { name: "Packages" })).not.toHaveAttribute("aria-current");
+    expect(drawer.getByRole("link", { name: "Checks" })).toHaveAttribute("href", "/app/checks");
   });
 
-  it.each(["Packages", "API Tokens"])("closes after selecting %s and restores menu focus", async (destination) => {
+  it.each(["Packages", "API Tokens", "Checks"])("closes after selecting %s and restores menu focus", async (destination) => {
     const keyboard = userEvent.setup();
     render(<AppShell user={user}>Content</AppShell>);
     const menu = screen.getByRole("button", { name: "Open navigation" });

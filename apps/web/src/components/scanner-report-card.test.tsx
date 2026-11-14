@@ -92,7 +92,25 @@ describe("ScannerReportCard", () => {
     render(<ScannerReportCard reportState={parseScannerReportResponse({ report: { schema_version: 1, findings: null, sources: null, check_runs: null } })} scanId="empty" />);
 
     expect(screen.getByText(/Review skipped checks and extraction status below for coverage/)).toBeInTheDocument();
-    expect(screen.getByText("No checks were run.")).toBeInTheDocument();
+    expect(screen.getByText("No check runs reported.")).toBeInTheDocument();
     expect(screen.getByText("No dependency sources detected.")).toBeInTheDocument();
+  });
+
+  it("does not describe skipped or failed runs without details as completed", () => {
+    const reportState = parseScannerReportResponse({ report: {
+      schema_version: 1, sources: [], findings: [], check_runs: [
+        { check_id: "skipped-check", subject: { project_root: "." }, status: "skipped" },
+        { check_id: "failed-check", subject: { project_root: "." }, status: "failed" },
+        { check_id: "completed-check", subject: { project_root: "." }, status: "completed" }
+      ]
+    } });
+    render(<ScannerReportCard reportState={reportState} scanId="without-details" />);
+    const disclosure = screen.getByText("Check runs · 3").closest("details");
+    if (!disclosure) throw new Error("Missing check disclosure");
+    disclosure.open = true;
+    fireEvent(disclosure, new Event("toggle"));
+
+    expect(screen.getAllByText("No detail reported")).toHaveLength(2);
+    expect(screen.getAllByText("Completed")).toHaveLength(1);
   });
 });

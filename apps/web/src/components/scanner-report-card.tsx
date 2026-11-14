@@ -95,7 +95,7 @@ export function ScannerReportCard({ reportState, scanId }: { reportState: Scanne
               {checksView.kind === "expanded" && (
                 <div className="px-4"><ListPagination page={checksView.page} pageSize={100} total={report.check_runs.length} onPageChange={(page) => setChecksView({ kind: "expanded", page })} /></div>
               )}
-              {report.check_runs.length === 0 ? <p className="px-4 pb-4 text-sm text-slate-600">No checks were run.</p> : (
+              {report.check_runs.length === 0 ? <p className="px-4 pb-4 text-sm text-slate-600">No check runs reported.</p> : (
                 <Table>
                   <TableHeader><TableRow><TableHead>Check</TableHead><TableHead>Project</TableHead><TableHead>Status</TableHead><TableHead>Detail</TableHead></TableRow></TableHeader>
                   <TableBody>
@@ -104,7 +104,7 @@ export function ScannerReportCard({ reportState, scanId }: { reportState: Scanne
                         <TableCell className="font-medium">{check.check_id}</TableCell>
                         <TableCell>{check.subject.project_root}</TableCell>
                         <TableCell className={check.status === "failed" ? "text-red-700" : "text-slate-600"}>{check.status}</TableCell>
-                        <TableCell className="whitespace-normal">{[check.reason_code, check.detail].filter(Boolean).join(" · ") || "Completed"}</TableCell>
+                        <TableCell className="whitespace-normal">{[check.reason_code, check.detail].filter(Boolean).join(" · ") || (check.status === "completed" ? "Completed" : "No detail reported")}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
