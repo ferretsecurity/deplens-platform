@@ -102,6 +102,7 @@ describe("ChecksFindings", () => {
     fireEvent.click(first.getByText("Evidence and scan"));
     expect(first.getByRole("link", { name: "Open scan" })).toHaveAttribute("href", "/app/scans/scan-repo-1");
     expect(first.getByText("manifest")).toBeVisible();
+    expect(first.getByText("01/01/2020, 00:00:00 UTC")).toHaveAttribute("datetime", "2020-01-01T00:00:00Z");
     fireEvent.change(screen.getByLabelText("Search findings"), { target: { value: "Second repository" } });
     expect(rows()).toHaveLength(1);
     expect(rows()[0]).not.toHaveAttribute("open");

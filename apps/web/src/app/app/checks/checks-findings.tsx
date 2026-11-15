@@ -107,7 +107,7 @@ export function ChecksFindings({ projects }: { projects: ProjectChecks[] }) {
                 <details className="text-slate-500">
                   <summary className="cursor-pointer">Evidence and scan</summary>
                   <dl className="mt-3 space-y-2">{Object.entries(finding.evidence).map(([key, value]) => <div key={key}><dt className="font-medium">{key}</dt><dd>{value}</dd></div>)}</dl>
-                  <p className="mt-3">{scan.commit_sha} · <time dateTime={scan.scanned_at}>{new Date(scan.scanned_at).toLocaleString("en-GB")}</time></p>
+                  <p className="mt-3">{scan.commit_sha} · <time dateTime={scan.scanned_at}>{new Date(scan.scanned_at).toLocaleString("en-GB", { timeZone: "UTC" })} UTC</time></p>
                   <div className="mt-2 flex flex-wrap gap-4">
                     <Link className="underline" href={`/app/scans/${scan.id}`}>Open scan</Link>
                     <Link className="underline" href={`/app/checks?${new URLSearchParams({ repository_id: repository.id, scan_id: scan.id })}`}>Permalink to these checks</Link>
