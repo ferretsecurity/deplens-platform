@@ -1,11 +1,26 @@
 import React from "react";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render as renderView, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/lib/api";
 import type * as queries from "@/lib/queries";
 import { parseScannerReportResponse } from "@/lib/scanner-report";
 import ChecksPage from "./page";
+
+function openDisclosures(container: HTMLElement) {
+  for (const summary of container.querySelectorAll("summary")) {
+    if (summary.textContent === "Repository and scan history" || summary.textContent?.startsWith("Scan coverage and reports")) {
+      const details = summary.closest("details");
+      if (details) details.open = true;
+    }
+  }
+}
+
+function render(ui: React.ReactNode) {
+  const view = renderView(ui);
+  openDisclosures(view.container);
+  return { ...view, rerender(next: React.ReactNode) { view.rerender(next); openDisclosures(view.container); } };
+}
 
 const mocks = vi.hoisted(() => ({
   listRepositoryOptionsServer: vi.fn<typeof queries.listRepositoryOptionsServer>(),
@@ -50,6 +65,29 @@ beforeEach(() => {
 });
 
 describe("ChecksPage", () => {
+  it("starts with findings and collapsed history and coverage", async () => {
+    renderView(await ChecksPage({}));
+    expect(screen.getByRole("region", { name: "Findings" })).toBeVisible();
+    expect(screen.getByText("Repository and scan history").closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByText(/Scan coverage and reports/).closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByText(/2 repositories have incomplete or unknown coverage/)).toBeVisible();
+  });
+
+  it("opens history for recovery when selection is unavailable", async () => {
+    renderView(await ChecksPage({ searchParams: Promise.resolve({ repository_id: "missing" }) }));
+    expect(screen.getByText("Repository and scan history").closest("details")).toHaveAttribute("open");
+    expect(screen.getByRole("combobox", { name: "Repository" })).toBeVisible();
+  });
+
+  it("resets local filters when the selected scan changes", async () => {
+    const view = renderView(await ChecksPage({ searchParams: Promise.resolve({ repository_id: "repo-1" }) }));
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search findings" }), { target: { value: "missing-match" } });
+    expect(screen.getByText("No findings match these filters.")).toBeVisible();
+    view.rerender(await ChecksPage({ searchParams: Promise.resolve({ repository_id: "repo-1", scan_id: older.id }) }));
+    expect(screen.getByRole("searchbox", { name: "Search findings" })).toHaveValue("");
+    expect(screen.getByText(/Selected scan ·/)).toBeVisible();
+  });
+
   it.each([undefined, { repository_id: "", scan_id: "" }, { repository_id: "  ", scan_id: " \t " }])("shows each project's latest scan with default filters %j", async (params) => {
     render(await ChecksPage({ searchParams: Promise.resolve(params ?? {}) }));
 
@@ -270,7 +308,7 @@ describe("ChecksPage", () => {
 
     expect(mocks.listScansServer.mock.calls.map(([id]) => id)).toEqual(manyRepositories.slice(0, 10).map(({ id }) => id));
     expect(mocks.getScanReportServer).toHaveBeenCalledTimes(10);
-    expect(screen.getByText("Showing projects 1–10 of 101. Page 1 of 11.")).toBeVisible();
+    expect(screen.getByText("Showing projects 1–10 of 101. Repository page 1 of 11. Filters reset when you change repository page.")).toBeVisible();
     expect(screen.getByRole("link", { name: "Next" })).toHaveAttribute("href", "/app/checks?page=2");
     expect(screen.queryByRole("link", { name: "Previous" })).not.toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Project 101" })).toHaveValue("repo-101");
@@ -285,7 +323,7 @@ describe("ChecksPage", () => {
     expect(mocks.listScansServer).toHaveBeenCalledExactlyOnceWith("repo-101", "0001-01-01T00:00:00Z", "9999-12-31T23:59:59Z");
     expect(mocks.getScanReportServer).toHaveBeenCalledExactlyOnceWith(latest.id);
     expect(screen.getByRole("region", { name: "Checks for Project 101" })).toBeVisible();
-    expect(screen.getByText("Showing projects 101–101 of 101. Page 11 of 11.")).toBeVisible();
+    expect(screen.getByText("Showing projects 101–101 of 101. Repository page 11 of 11. Filters reset when you change repository page.")).toBeVisible();
     expect(screen.getByRole("link", { name: "Previous" })).toHaveAttribute("href", "/app/checks?page=10");
     expect(screen.queryByRole("link", { name: "Next" })).not.toBeInTheDocument();
   });
