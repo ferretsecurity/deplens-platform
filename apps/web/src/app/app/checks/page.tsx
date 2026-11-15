@@ -1,4 +1,6 @@
 import React from "react";
+import { FindingsPrototype } from "./findings.prototype";
+import { ChecksPrototype } from "./checks.prototype";
 import Link from "next/link";
 import { z } from "zod";
 
@@ -10,10 +12,10 @@ import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api";
 import { getScanReportServer, getScanServer, listRepositoryOptionsServer, listScansServer } from "@/lib/queries";
 
-type ChecksParams = { repository_id?: string | string[]; scan_id?: string | string[]; page?: string | string[] };
+type ChecksParams = { variant?: string; repository_id?: string | string[]; scan_id?: string | string[]; page?: string | string[] };
 type Repository = Awaited<ReturnType<typeof listRepositoryOptionsServer>>[number];
 type Scan = Awaited<ReturnType<typeof getScanServer>>;
-type ProjectChecks = {
+export type ProjectChecks = {
   repository: Repository;
   scans: Scan[];
   selected: { scan: Scan; report: Awaited<ReturnType<typeof getScanReportServer>> } | null;
@@ -71,7 +73,14 @@ async function loadChecks(params: ChecksParams) {
 }
 
 export default async function ChecksPage({ searchParams }: { searchParams?: Promise<ChecksParams> }) {
-  const { repositories, repositoryId, scanId, selection } = await loadChecks((await searchParams) ?? {});
+  const params = (await searchParams) ?? {};
+  const { repositories, repositoryId, scanId, selection } = await loadChecks(params);
+  if (process.env.NODE_ENV !== "production" && params.variant && ["D", "E", "F"].includes(params.variant) && selection.kind === "ready") {
+    return <FindingsPrototype projects={selection.projects} variant={params.variant} page={selection.page} totalPages={selection.totalPages} />;
+  }
+  if (process.env.NODE_ENV !== "production" && params.variant && ["A", "B", "C"].includes(params.variant) && selection.kind === "ready") {
+    return <ChecksPrototype projects={selection.projects} variant={params.variant} total={selection.total} page={selection.page} totalPages={selection.totalPages} />;
+  }
 
   if (repositories.length === 0 && !repositoryId && !scanId) {
     return (
