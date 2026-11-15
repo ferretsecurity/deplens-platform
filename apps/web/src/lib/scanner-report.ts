@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export const findingSeveritySchema = z.enum(["info", "low", "medium", "high", "critical"]);
+
 const subjectSchema = z.object({ project_root: z.string() });
 
 export const scannerReportResponseSchema = z.object({
@@ -28,7 +30,7 @@ export const scannerReportResponseSchema = z.object({
     })).nullable().transform((value) => value ?? []),
     findings: z.array(z.object({
       check_id: z.string(),
-      severity: z.enum(["info", "low", "medium", "high", "critical"]),
+      severity: findingSeveritySchema,
       summary: z.string(),
       subject: subjectSchema,
       locations: z.array(z.object({ path: z.string() })).nullable().transform((value) => value ?? []),

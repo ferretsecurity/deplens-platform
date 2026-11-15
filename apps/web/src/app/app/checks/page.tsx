@@ -10,14 +10,11 @@ import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api";
 import { getScanReportServer, getScanServer, listRepositoryOptionsServer, listScansServer } from "@/lib/queries";
 
+import type { ProjectChecks } from "./checks-data";
+import { ChecksFindings } from "./checks-findings";
+
 type ChecksParams = { repository_id?: string | string[]; scan_id?: string | string[]; page?: string | string[] };
-type Repository = Awaited<ReturnType<typeof listRepositoryOptionsServer>>[number];
 type Scan = Awaited<ReturnType<typeof getScanServer>>;
-type ProjectChecks = {
-  repository: Repository;
-  scans: Scan[];
-  selected: { scan: Scan; report: Awaited<ReturnType<typeof getScanReportServer>> } | null;
-};
 type Selection =
   | { kind: "ready"; projects: ProjectChecks[]; page: number; totalPages: number; total: number }
   | { kind: "missing-repository" | "missing-scan" | "scan-repository-mismatch" };
@@ -71,7 +68,8 @@ async function loadChecks(params: ChecksParams) {
 }
 
 export default async function ChecksPage({ searchParams }: { searchParams?: Promise<ChecksParams> }) {
-  const { repositories, repositoryId, scanId, selection } = await loadChecks((await searchParams) ?? {});
+  const params = (await searchParams) ?? {};
+  const { repositories, repositoryId, scanId, selection } = await loadChecks(params);
 
   if (repositories.length === 0 && !repositoryId && !scanId) {
     return (
@@ -89,14 +87,24 @@ export default async function ChecksPage({ searchParams }: { searchParams?: Prom
   const scanIsListed = projects.some((project) => project.scans.some((scan) => scan.id === scanId));
   const selectedScan = projects.find((project) => project.selected?.scan.id === scanId)?.selected?.scan;
 
+  const incompleteCoverage = projects.filter(({ selected }) => !selected || selected.report.kind !== "available"
+    || selected.report.report.check_runs.length === 0
+    || selected.report.report.check_runs.some((check) => check.status !== "completed")
+    || selected.report.report.sources.some((source) => source.analysis.extraction !== "complete")).length;
+  const findingsCount = projects.reduce((total, { selected }) => total + (selected?.report.kind === "available" ? selected.report.report.findings.length : 0), 0);
+  const scope = scanId && selectedScan ? `Selected scan · ${new Date(selectedScan.scanned_at).toLocaleString("en-GB")} · ${projects[0]?.repository.name}`
+    : repositoryId && projects[0] ? `Latest scan · ${projects[0].repository.name}` : "Latest scan per repository";
+
   return (
-    <section className="space-y-6">
-      <Card className="border-slate-200/80 bg-white/80 shadow-sm backdrop-blur">
-        <CardHeader>
-          <h1 className="text-2xl font-semibold leading-none tracking-tight">Checks</h1>
-          <CardDescription>CLI policy checks and findings. By default, the latest scan for each project.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
+    <section className="min-w-0 space-y-6 text-slate-900">
+      <header>
+        <h1 className="text-2xl font-semibold tracking-tight">Checks</h1>
+        <p className="mt-2 text-sm text-slate-500">{selection.kind === "ready" ? `${findingsCount} findings in this repository page · ${scope}` : "Choose an available repository and scan."}</p>
+      </header>
+      {selection.kind === "ready" ? <ChecksFindings key={JSON.stringify([repositoryId, scanId, selection.page, projects.map((project) => [project.repository.id, project.selected?.scan.id])])} projects={projects} /> : null}
+      <details open={selection.kind !== "ready"} className="rounded-xl border border-slate-200 bg-white/80">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-medium">Repository and scan history</summary>
+        <div className="grid gap-4 p-4 md:grid-cols-2">
           <form action="/app/checks" method="get" aria-label="Choose repository" className="grid min-w-0 content-start gap-3">
             <div className="grid min-w-0 gap-2">
               <Label htmlFor="repository_id">Repository</Label>
@@ -130,8 +138,8 @@ export default async function ChecksPage({ searchParams }: { searchParams?: Prom
             <Button type="submit">Apply scan</Button>
           </form>
           <Link className="text-sm font-medium text-slate-900 underline-offset-4 hover:underline" href="/app/checks">Clear filters</Link>
-        </CardContent>
-      </Card>
+        </div>
+      </details>
 
       {selection.kind === "missing-repository" ? (
         <p className="text-sm text-slate-600">This repository is unavailable. Select another repository above.</p>
@@ -143,40 +151,46 @@ export default async function ChecksPage({ searchParams }: { searchParams?: Prom
         <>
           {!repositoryId && !scanId ? (
             <nav aria-label="Project pages" className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
-              <p>Showing projects {(selection.page - 1) * 10 + 1}–{Math.min(selection.page * 10, selection.total)} of {selection.total}. Page {selection.page} of {selection.totalPages}.</p>
+              <p>Showing projects {(selection.page - 1) * 10 + 1}–{Math.min(selection.page * 10, selection.total)} of {selection.total}. Repository page {selection.page} of {selection.totalPages}. Filters reset when you change repository page.</p>
               {selection.page > 1 ? <Link className="font-medium text-slate-900 hover:underline" href={`/app/checks?page=${selection.page - 1}`}>Previous</Link> : null}
               {selection.page < selection.totalPages ? <Link className="font-medium text-slate-900 hover:underline" href={`/app/checks?page=${selection.page + 1}`}>Next</Link> : null}
             </nav>
           ) : null}
-          {selection.projects.map(({ repository, scans, selected }) => (
-            <section key={repository.id} aria-label={`Checks for ${repository.name}`} className="space-y-4 rounded-xl border border-slate-200 bg-white/80 p-4 text-sm">
-              <h2 className="text-lg font-semibold text-slate-950">
-                <Link className="underline-offset-4 hover:underline [overflow-wrap:anywhere]" href={`/app/repositories/${repository.id}/manifests`}>{repository.name}</Link>
-              </h2>
-              {!selected ? (
-                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-slate-600">
-                  <p>No CLI scans have been uploaded for {repository.name}.</p>
-                  <details className="mt-3">
-                    <summary className="cursor-pointer font-medium text-slate-900">How to upload a scan</summary>
-                    <div className="mt-3"><EmptyInventory /></div>
-                  </details>
-                </div>
-              ) : (
-                <>
-                  <dl className="grid gap-3 sm:grid-cols-2">
-                    <div className="min-w-0"><dt className="text-slate-500">Commit</dt><dd className="break-all font-mono">{selected.scan.commit_sha}</dd></div>
-                    <div><dt className="text-slate-500">Scanned at{selected.scan.id === scans[0]?.id ? " · Latest scan" : ""}</dt><dd><time dateTime={selected.scan.scanned_at} title={new Date(selected.scan.scanned_at).toISOString()}>{new Date(selected.scan.scanned_at).toLocaleString("en-GB")}</time></dd></div>
-                    <div className="min-w-0 sm:col-span-2"><dt className="text-slate-500">Scan ID</dt><dd className="break-all font-mono">{selected.scan.id}</dd></div>
-                  </dl>
-                  <div className="flex flex-wrap gap-4">
-                    <Link className="font-medium text-slate-900 underline-offset-4 hover:underline" href={`/app/scans/${selected.scan.id}`}>Scan details</Link>
-                    <Link className="font-medium text-slate-900 underline-offset-4 hover:underline" href={`/app/checks?${new URLSearchParams({ repository_id: repository.id, scan_id: selected.scan.id })}`}>Permalink to these checks</Link>
-                  </div>
-                  <ScannerReportCard key={selected.scan.id} scanId={selected.scan.id} reportState={selected.report} />
-                </>
-              )}
-            </section>
-          ))}
+          <details className="rounded-xl border border-slate-200 bg-white/80">
+            <summary className="cursor-pointer px-4 py-3 text-sm font-medium">Scan coverage and reports · {incompleteCoverage} {incompleteCoverage === 1 ? "repository has" : "repositories have"} incomplete or unknown coverage</summary>
+            <div className="space-y-4 p-4 pt-0">
+              {selection.projects.map(({ repository, scans, selected }) => (
+                <section key={repository.id} aria-label={`Checks for ${repository.name}`} className="space-y-4 rounded-xl border border-slate-200 bg-white/80 p-4 text-sm">
+                  <h2 className="text-lg font-semibold text-slate-950">
+                    <Link className="underline-offset-4 hover:underline [overflow-wrap:anywhere]" href={`/app/repositories/${repository.id}/manifests`}>{repository.name}</Link>
+                  </h2>
+                  {!selected ? (
+                    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-slate-600">
+                      <p>No CLI scans have been uploaded for {repository.name}.</p>
+                      <details className="mt-3">
+                        <summary className="cursor-pointer font-medium text-slate-900">How to upload a scan</summary>
+                        <div className="mt-3"><EmptyInventory /></div>
+                      </details>
+                    </div>
+                  ) : (
+                    <>
+                      <dl className="grid gap-3 sm:grid-cols-2">
+                        <div className="min-w-0"><dt className="text-slate-500">Commit</dt><dd className="break-all font-mono">{selected.scan.commit_sha}</dd></div>
+                        <div><dt className="text-slate-500">Scanned at{selected.scan.id === scans[0]?.id ? " · Latest scan" : ""}</dt><dd><time dateTime={selected.scan.scanned_at} title={new Date(selected.scan.scanned_at).toISOString()}>{new Date(selected.scan.scanned_at).toLocaleString("en-GB")}</time></dd></div>
+                        <div className="min-w-0 sm:col-span-2"><dt className="text-slate-500">Scan ID</dt><dd className="break-all font-mono">{selected.scan.id}</dd></div>
+                      </dl>
+                      <div className="flex flex-wrap gap-4">
+                        <Link className="font-medium text-slate-900 underline-offset-4 hover:underline" href={`/app/scans/${selected.scan.id}`}>Scan details</Link>
+                        <Link className="font-medium text-slate-900 underline-offset-4 hover:underline" href={`/app/checks?${new URLSearchParams({ repository_id: repository.id, scan_id: selected.scan.id })}`}>Permalink to these checks</Link>
+                      </div>
+                      {selected.report.kind === "available" && selected.report.report.check_runs.length === 0 ? <p className="text-slate-600">No check runs reported. Check coverage is unknown.</p> : null}
+                      <ScannerReportCard key={selected.scan.id} scanId={selected.scan.id} reportState={selected.report} />
+                    </>
+                  )}
+                </section>
+              ))}
+            </div>
+          </details>
         </>
       )}
     </section>
