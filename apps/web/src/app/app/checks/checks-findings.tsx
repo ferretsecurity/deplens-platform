@@ -55,7 +55,7 @@ export function ChecksFindings({ projects }: { projects: ProjectChecks[] }) {
   return (
     <section aria-label="Findings" className="min-w-0 space-y-4">
       <div className="flex flex-wrap items-end gap-3">
-        <div className="grid min-w-0 flex-1 gap-2 sm:max-w-80">
+        <div className="grid w-full min-w-0 gap-2 sm:max-w-80 sm:flex-1">
           <Label htmlFor="findings-search">Search findings</Label>
           <input id="findings-search" type="search" placeholder="Search findings…" value={filters.query} onChange={(event) => updateFilters({ ...filters, query: event.target.value })} className="h-9 min-w-0 rounded-md border border-slate-200 bg-white px-3 text-sm" />
         </div>
